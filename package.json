@@ -1,0 +1,20 @@
+{
+  "name": "run-and-debug",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:atlases": "node scripts/build-atlases.mjs",
+    "prebuild": "npm run build:atlases",
+    "prebundle": "npm run build:atlases",
+    "bundle": "esbuild src/main.js --bundle --format=iife --platform=browser --loader:.svg=dataurl --loader:.png=dataurl --loader:.webp=file --loader:.mp4=file --log-level=error --outfile=game.bundle.js && perl -0pi -e 's/import_meta\\w*\\.url/document.baseURI/g; s#\\.\\./\\.\\./assets/#./assets/#g' game.bundle.js",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12",
+    "sharp": "^0.34.5",
+    "vite": "^7.1.0"
+  }
+}

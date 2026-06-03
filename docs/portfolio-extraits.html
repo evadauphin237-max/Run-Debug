@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Run & Debug - Extraits Portfolio</title>
+    <style>
+      :root {
+        --bg: #f4efe8;
+        --surface: rgba(255, 252, 247, 0.94);
+        --surface-strong: #fffdf9;
+        --border: rgba(22, 50, 79, 0.12);
+        --text: #1b3148;
+        --muted: #5a6b7b;
+        --accent: #f05a7e;
+        --accent-2: #2f83ff;
+        --code-bg: #12263a;
+        --code-text: #eef5ff;
+        --shadow: 0 22px 50px rgba(27, 49, 72, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), transparent 30%),
+          linear-gradient(180deg, #9edcff 0%, var(--bg) 52%, #fff8ef 100%);
+      }
+
+      .page {
+        width: min(1100px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 40px 0 64px;
+      }
+
+      .hero {
+        margin-bottom: 28px;
+        padding: 32px;
+        border: 1px solid var(--border);
+        border-radius: 28px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(14px);
+      }
+
+      .eyebrow {
+        margin: 0 0 10px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2.2rem, 4vw, 3.8rem);
+        line-height: 0.92;
+      }
+
+      .lead {
+        max-width: 760px;
+        margin: 16px 0 0;
+        font-size: 1.08rem;
+        line-height: 1.65;
+        color: var(--muted);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .chip {
+        padding: 10px 14px;
+        border: 1px solid rgba(47, 131, 255, 0.15);
+        border-radius: 999px;
+        font-size: 0.92rem;
+        background: rgba(255, 255, 255, 0.76);
+      }
+
+      .grid {
+        display: grid;
+        gap: 20px;
+      }
+
+      .card {
+        padding: 24px;
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--surface-strong);
+        box-shadow: var(--shadow);
+      }
+
+      .card h2 {
+        margin: 0;
+        font-size: 1.45rem;
+      }
+
+      .meta {
+        margin-top: 8px;
+        font-size: 0.92rem;
+        color: var(--accent-2);
+      }
+
+      .description {
+        margin: 14px 0 18px;
+        line-height: 1.65;
+        color: var(--muted);
+      }
+
+      pre {
+        margin: 0;
+        overflow-x: auto;
+        padding: 18px;
+        border-radius: 18px;
+        background: var(--code-bg);
+        color: var(--code-text);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+
+      code {
+        font-family: "SFMono-Regular", "Menlo", "Consolas", monospace;
+        font-size: 0.92rem;
+        line-height: 1.65;
+      }
+
+      .footer {
+        margin-top: 20px;
+        padding: 20px 24px;
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.76);
+        color: var(--muted);
+      }
+
+      @media (max-width: 720px) {
+        .page {
+          width: min(100% - 16px, 1100px);
+          padding: 16px 0 36px;
+        }
+
+        .hero,
+        .card {
+          padding: 18px;
+          border-radius: 20px;
+        }
+
+        pre {
+          padding: 14px;
+          border-radius: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow">Portfolio Web Dev</p>
+        <h1>Run &amp; Debug<br />Meilleurs extraits de code</h1>
+        <p class="lead">
+          Cette page rassemble les morceaux de code les plus intéressants du projet pour montrer une
+          architecture frontend claire: point d’entrée, orchestration du moteur, logique de boucle,
+          séparation UI / gameplay et tests unitaires.
+        </p>
+        <div class="chips">
+          <span class="chip">JavaScript modulaire</span>
+          <span class="chip">Canvas 2D</span>
+          <span class="chip">Architecture frontend</span>
+          <span class="chip">Responsive</span>
+          <span class="chip">Code testable</span>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>1. Point d’entrée propre</h2>
+          <div class="meta">Fichier: <code>src/main.js</code></div>
+          <p class="description">
+            Cet extrait montre la composition racine du projet. Il assemble l’environnement browser,
+            la vue DOM et le moteur du jeu sans mélanger les responsabilités.
+          </p>
+          <pre><code>import { createBrowserRuntime } from "./game/browser-runtime.js";
+import { createGame } from "./game/engine.js";
+import { createGameDOMView } from "./game/game-dom-view.js";
+
+// Composition root:
+// this file wires the browser environment, the DOM view and the game engine together.
+const browser = createBrowserRuntime();
+const canvas = browser.documentRef.getElementById("gameCanvas");
+const view = createGameDOMView({
+  overlay: browser.documentRef.getElementById("overlay"),
+  overlayTitle: browser.documentRef.getElementById("overlayTitle"),
+  overlayText: browser.documentRef.getElementById("overlayText"),
+  actionButton: browser.documentRef.getElementById("actionButton"),
+  recordValue: browser.documentRef.getElementById("recordValue"),
+  scoreValue: browser.documentRef.getElementById("scoreValue"),
+  livesDisplay: browser.documentRef.getElementById("livesDisplay"),
+  difficultyOptions: browser.documentRef.getElementById("difficultyOptions"),
+  touchJumpButton: browser.documentRef.getElementById("touchJumpButton"),
+}, browser);
+
+const game = createGame({
+  browser,
+  canvas,
+  view,
+});
+
+game.start();</code></pre>
+        </article>
+
+        <article class="card">
+          <h2>2. Moteur principal du jeu</h2>
+          <div class="meta">Fichier: <code>src/game/engine.js</code></div>
+          <p class="description">
+            C’est l’extrait le plus fort du projet. Il illustre la séparation entre état métier,
+            physique du joueur, runtime technique et services comme le renderer ou la vue.
+          </p>
+          <pre><code>// Engine is the orchestration layer of the game.
+// It owns the main loop, coordinates state updates and tells the view/renderer what to show.
+export function createGame(elements) {
+  const { browser, canvas, view } = elements;
+
+  const ctx = canvas.getContext("2d");
+  const world = createWorld();
+  const renderer = createRenderer(ctx, world);
+
+  canvas.width = world.width;
+  canvas.height = world.height;
+
+  let difficulty = getDifficultyById(loadPreferredDifficulty());
+  // Long-lived simulation state.
+  const state = createGameState(difficulty, loadBestScore(difficulty.id));
+  // Player physics state.
+  const player = createPlayer(world, difficulty);
+  // Ephemeral runtime bookkeeping for the loop and asset loading.
+  const runtime = createRuntimeState();
+
+  let obstacles = [];
+  let bonusHearts = [];
+  let bugHitEffects = [];
+  let clouds = [];
+
+  function initGame() {
+    view.clearHeartBreakTimers();
+    clearHeadImpactTimer();
+    obstacles = [];
+    bonusHearts = [];
+    bugHitEffects = [];
+    clouds = createClouds();
+    resetRuntimeState(runtime);
+    resetGameState(state, difficulty, loadBestScore(difficulty.id));
+    resetPlayer(player, difficulty);
+
+    // Resetting the simulation also resets the UI so the next run starts from a clean baseline.
+    view.resetLivesDisplay(state.lives);
+    updateScoreDisplay();
+    view.showOverlay("Run &amp; Debug", getJumpInstructions(), "Commencer");
+    syncTouchMode();
+    renderer.draw({ state, player, runtime, clouds, obstacles, bonusHearts, bugHitEffects });
+  }</code></pre>
+        </article>
+
+        <article class="card">
+          <h2>3. Boucle de gameplay pure et testable</h2>
+          <div class="meta">Fichier: <code>src/game/gameplay-loop.js</code></div>
+          <p class="description">
+            Ici, la logique de frame est isolée dans des fonctions pures. C’est une bonne preuve de
+            qualité d’architecture, parce qu’on peut tester la logique sans dépendre du DOM ni du
+            canvas.
+          </p>
+          <pre><code>import { computeNextObstacleDelay } from "./logic.js";
+
+// Pure frame-update helpers extracted from the engine.
+// The engine orchestrates them, while tests can validate the math in isolation.
+export function computeFrameDelta(timestamp, lastTime, maxDelta = 0.033) {
+  if (!lastTime) {
+    return {
+      deltaTime: 0,
+      lastTime: timestamp,
+    };
+  }
+
+  return {
+    deltaTime: Math.min((timestamp - lastTime) / 1000, maxDelta),
+    lastTime: timestamp,
+  };
+}
+
+export function createActiveGameUpdate(state, difficulty, worldWidth, deltaTime) {
+  // Once the death fall starts we freeze score/speed progression,
+  // but we keep animation timers advancing until the ending resolves.
+  const isEndingAfterAnimation = state.pendingGameOver;
+  const runTime = isEndingAfterAnimation ? state.runTime : state.runTime + deltaTime;
+  const score = isEndingAfterAnimation ? state.score : state.score + deltaTime * difficulty.scoreRate;
+  const speed = isEndingAfterAnimation
+    ? state.speed
+    : state.speed + deltaTime * (difficulty.speedRamp + runTime * difficulty.speedRampGrowth);
+
+  return {
+    runTime,
+    score,
+    speed,
+    obstacleTimer: isEndingAfterAnimation ? state.obstacleTimer : state.obstacleTimer + deltaTime,
+    hitCooldown: isEndingAfterAnimation
+      ? state.hitCooldown
+      : Math.max(0, state.hitCooldown - deltaTime),
+    groundOffset: (state.groundOffset + speed * deltaTime) % worldWidth,
+  };
+}</code></pre>
+        </article>
+
+        <article class="card">
+          <h2>4. Couche UI séparée de la logique métier</h2>
+          <div class="meta">Fichier: <code>src/game/ui.js</code></div>
+          <p class="description">
+            Cet extrait montre que l’interface ne décide pas des règles du jeu. Elle se contente de
+            refléter l’état et d’animer le DOM, ce qui rend le code plus lisible et plus maintenable.
+          </p>
+          <pre><code>// DOM-only presentation layer.
+// It updates overlays, score panels and heart animations, but never runs game rules.
+export function createUI({
+  overlay,
+  overlayTitle,
+  overlayText,
+  actionButton,
+  recordValue,
+  scoreValue,
+  livesDisplay,
+  difficultyOptions,
+  touchJumpButton,
+}, browser) {
+  const heartBreakTimers = new Map();
+
+  function setupLivesDisplay(maxLives, lives) {
+    livesDisplay.innerHTML = "";
+
+    // Hearts are generated once, then their CSS classes reflect the current state.
+    for (let index = 0; index < maxLives; index += 1) {
+      const heart = browser.documentRef.createElement("span");
+      heart.className = "heart";
+      heart.dataset.index = String(index);
+      heart.setAttribute("aria-hidden", "true");
+      livesDisplay.appendChild(heart);
+    }
+
+    updateLivesAriaLabel(lives);
+  }
+
+  function breakHeart(index, lives) {
+    const heart = livesDisplay.querySelector(`.heart[data-index="${index}"]`);
+    if (!heart) {
+      updateLivesAriaLabel(lives);
+      return;
+    }
+
+    heart.classList.add("heart--breaking");
+    // The engine updates lives immediately; this timeout only drives the visual transition.
+    const timer = browser.setTimeout(() => {
+      heart.classList.remove("heart--breaking");
+      heart.classList.add("heart--gone");
+      heartBreakTimers.delete(index);
+      updateLivesAriaLabel(lives);
+    }, 450);
+
+    heartBreakTimers.set(index, timer);
+  }</code></pre>
+        </article>
+
+        <article class="card">
+          <h2>5. Tests unitaires sur la logique</h2>
+          <div class="meta">Fichier: <code>test/game-modules.test.js</code></div>
+          <p class="description">
+            Ajouter des tests sur la physique et la boucle de jeu renforce beaucoup le dossier
+            portfolio. Cela montre une approche sérieuse, pas seulement un rendu visuel.
+          </p>
+          <pre><code>import test from "node:test";
+import assert from "node:assert/strict";
+
+import { createGameState } from "../src/game/game-state.js";
+import {
+  computeFrameDelta,
+  createActiveGameUpdate,
+} from "../src/game/gameplay-loop.js";
+import { createPlayer, jumpPlayer, preparePlayerDeathFall, updatePlayer } from "../src/game/player-controller.js";
+
+test("player controller allows one jump and one double jump", () => {
+  const difficulty = {
+    startSpeed: 320,
+    maxSpeedFactor: 1.35,
+    obstacleDelayMin: 0.9,
+    obstacleDelayMax: 1.55,
+    gravity: 2100,
+    jumpStrength: 760,
+    doubleJumpMultiplier: 0.94,
+  };
+  const world = { groundY: 430 };
+  const state = createGameState(difficulty, 0);
+  const player = createPlayer(world, difficulty);
+
+  state.gameStarted = true;
+
+  assert.equal(jumpPlayer(state, player), true);
+  assert.equal(player.isJumping, true);
+  assert.equal(player.jumpsUsed, 1);
+
+  assert.equal(jumpPlayer(state, player), true);
+  assert.equal(player.isDoubleJumping, true);
+  assert.equal(player.jumpsUsed, 2);
+});</code></pre>
+        </article>
+      </section>
+
+      <section class="footer">
+        Cette page est disponible ici: <code>docs/portfolio-extraits.html</code>. Tu peux l’ouvrir
+        telle quelle, ou me demander une version encore plus “portfolio designer” si tu veux quelque
+        chose de plus éditorial.
+      </section>
+    </main>
+  </body>
+  </html>

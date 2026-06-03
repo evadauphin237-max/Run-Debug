@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Run & Debug</title>
+    <link rel="stylesheet" href="./src/styles/main.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="canvas-card" aria-label="Jeu de course et de saut">
+        <div class="hud-stats hud-stats-overlay">
+          <div class="hud-score-group">
+            <div class="score-panel" aria-live="polite">
+              <span>Hi-Score</span>
+              <strong id="recordValue">0</strong>
+            </div>
+            <div class="score-panel" aria-live="polite">
+              <span>Score</span>
+              <strong id="scoreValue">0</strong>
+            </div>
+            <div class="score-panel score-panel--coins" aria-live="polite">
+              <span>Pièces</span>
+              <strong class="coin-readout">
+                <img src="./assets/dollar.png" alt="" aria-hidden="true" />
+                <span id="coinValue">0</span>
+              </strong>
+            </div>
+          </div>
+          <div class="life-panel" aria-live="polite">
+            <div id="livesDisplay" class="lives-display" aria-label="3 vies restantes"></div>
+          </div>
+          <button
+            id="settingsButton"
+            class="hud-settings-button"
+            type="button"
+            aria-label="Ouvrir les paramètres"
+          ></button>
+        </div>
+
+        <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+        <div id="overlay" class="overlay visible" role="dialog" aria-live="polite">
+          <div class="overlay-fireworks" aria-hidden="true">
+            <span class="firework firework-one"></span>
+            <span class="firework firework-two"></span>
+            <span class="firework firework-three"></span>
+            <span class="firework firework-four"></span>
+            <span class="firework firework-five"></span>
+          </div>
+          <div class="overlay-panel">
+            <p id="overlayTag" class="overlay-tag">Sélection du niveau</p>
+            <h2 id="overlayTitle">Run & Debug</h2>
+            <p id="overlayText">Choisis ton rythme puis appuie sur Commencer</p>
+            <div class="overlay-settings" aria-label="Paramètres du jeu">
+              <section class="settings-section" aria-labelledby="settings-pace-title">
+                <h3 id="settings-pace-title" class="settings-section-title">Rythme de jeu</h3>
+                <p class="settings-section-text">Choisis la vitesse qui te convient le mieux.</p>
+                <div
+                  id="difficultyOptions"
+                  class="difficulty-options"
+                  role="radiogroup"
+                  aria-label="Choisir la difficulté"
+                ></div>
+              </section>
+              <section class="settings-section" aria-labelledby="settings-level-title">
+                <h3 id="settings-level-title" class="settings-section-title">Niveau</h3>
+                <p class="settings-section-text">Choisis le decor de la course apres le mode de jeu.</p>
+                <div
+                  id="levelOptions"
+                  class="difficulty-options"
+                  role="radiogroup"
+                  aria-label="Choisir le niveau"
+                ></div>
+              </section>
+            </div>
+            <div class="overlay-actions">
+              <button id="actionButton" class="button-primary" type="button">Commencer</button>
+            </div>
+          </div>
+        </div>
+
+        <button id="touchJumpButton" class="touch-jump" type="button" aria-label="Sauter">
+          Sauter
+        </button>
+      </section>
+    </main>
+
+    <script>
+      window.__RUN_DEBUG_FILE_MODE__ = window.location.protocol === "file:";
+
+      if (window.__RUN_DEBUG_FILE_MODE__) {
+        const gameScript = document.createElement("script");
+        gameScript.src = "./game.bundle.js";
+        document.body.appendChild(gameScript);
+      }
+    </script>
+    <script type="module">
+      if (!window.__RUN_DEBUG_FILE_MODE__) {
+        import("./src/main.js");
+      }
+    </script>
+  </body>
+</html>
