@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Record Preview</title>
+    <link rel="stylesheet" href="./src/styles/main.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="canvas-card" aria-label="Preview nouveau record">
+        <canvas id="gameCanvas" width="960" height="540"></canvas>
+        <div
+          id="overlay"
+          class="overlay visible overlay--end-screen overlay--record overlay--score-flash"
+          data-screen="end"
+          role="dialog"
+          aria-live="polite"
+          aria-busy="false"
+        >
+          <div class="overlay-fireworks" aria-hidden="true">
+            <span class="firework firework-one"></span>
+            <span class="firework firework-two"></span>
+            <span class="firework firework-three"></span>
+            <span class="firework firework-four"></span>
+            <span class="firework firework-five"></span>
+          </div>
+          <div class="overlay-panel">
+            <p id="overlayTag" class="overlay-tag">Nouveau sommet</p>
+            <h2
+              id="overlayTitle"
+              class="overlay-title--logo overlay-title--record-badge"
+              aria-label="NOUVEAU RECORD"
+            >
+              <span class="overlay-logo-badge overlay-logo-badge--new-record" aria-hidden="true">
+                <img
+                  class="overlay-logo-image overlay-logo-image--new-record"
+                  src="./assets/NOUVEAURECORD.svg"
+                  alt=""
+                />
+              </span>
+            </h2>
+            <div class="overlay-record-score" aria-hidden="false">
+              <span class="overlay-record-score__value">152</span>
+            </div>
+            <p id="overlayText">Score valide pour previsualiser le badge.</p>
+            <div class="overlay-actions">
+              <button id="actionButton" class="button-primary" type="button">Essaye encore</button>
+              <button id="resetScoresButton" class="button-secondary" type="button">
+                Réinitialiser les scores
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

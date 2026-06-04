@@ -164,7 +164,7 @@ export function getChuteFrameIndex(deathFallTime, deathFallDuration, frameCount)
   return Math.min(frameCount - 1, Math.floor(progress * frameCount));
 }
 
-export function getWinFrameIndex(
+export function getIntroThenLoopTailFrameIndex(
   animationTime,
   frameCount,
   introFramesPerSecond = 3.2,
@@ -197,6 +197,22 @@ export function getWinFrameIndex(
   }
 
   return loopStart + ((loopStep - loopLength) % loopLength);
+}
+
+export function getWinFrameIndex(
+  animationTime,
+  frameCount,
+  introFramesPerSecond = 3.2,
+  loopTailCount = 4,
+  loopFramesPerSecond = introFramesPerSecond
+) {
+  return getIntroThenLoopTailFrameIndex(
+    animationTime,
+    frameCount,
+    introFramesPerSecond,
+    loopTailCount,
+    loopFramesPerSecond
+  );
 }
 
 export function createClouds() {

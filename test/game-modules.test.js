@@ -35,6 +35,7 @@ import {
   PLAYER_VISUAL_STATES,
   resolvePlayerVisualState,
 } from "../src/game/player-visual-state.js";
+import { bindInput } from "../src/game/input.js";
 
 test("player controller allows one jump and one double jump", () => {
   const difficulty = {
@@ -225,6 +226,141 @@ test("player visual state machine maps states to animation sheets", () => {
   );
 });
 
+test("game over animation plays once then loops on the last seven frames", () => {
+  const difficulty = {
+    startSpeed: 320,
+    maxSpeedFactor: 1.35,
+    obstacleDelayMin: 0.9,
+    obstacleDelayMax: 1.55,
+    gravity: 2100,
+    jumpStrength: 760,
+    doubleJumpMultiplier: 0.94,
+  };
+  const world = { groundY: 430 };
+  const state = createGameState(difficulty, 0);
+  const player = createPlayer(world, difficulty);
+  const runtime = {
+    didBeatRecordOnDeath: false,
+    deathFallDuration: 0.96,
+    isPlayerHeadInImpactState: false,
+    hitAnimationTime: null,
+  };
+
+  state.gameOver = true;
+  state.gameOverAnimationTime = 0;
+
+  const startingAnimation = createPlayerAnimationFromVisualState(
+    PLAYER_VISUAL_STATES.GAME_OVER,
+    state,
+    player,
+    runtime
+  );
+  assert.equal(startingAnimation.sheet, "gameOver");
+  assert.equal(startingAnimation.frameIndex, 0);
+
+  state.gameOverAnimationTime = 40 / 12;
+
+  const loopStartAnimation = createPlayerAnimationFromVisualState(
+    PLAYER_VISUAL_STATES.GAME_OVER,
+    state,
+    player,
+    runtime
+  );
+  assert.equal(loopStartAnimation.frameIndex, 40);
+
+  state.gameOverAnimationTime = 3.51;
+
+  const secondLoopFrameAnimation = createPlayerAnimationFromVisualState(
+    PLAYER_VISUAL_STATES.GAME_OVER,
+    state,
+    player,
+    runtime
+  );
+  assert.equal(secondLoopFrameAnimation.frameIndex, 42);
+
+  state.gameOverAnimationTime = 3.95;
+
+  const loopWrapAnimation = createPlayerAnimationFromVisualState(
+    PLAYER_VISUAL_STATES.GAME_OVER,
+    state,
+    player,
+    runtime
+  );
+  assert.equal(loopWrapAnimation.frameIndex, 40);
+});
+
+test("game over kneeling frames use a larger visual scale than the final loop frames", () => {
+  const difficulty = {
+    startSpeed: 320,
+    maxSpeedFactor: 1.35,
+    obstacleDelayMin: 0.9,
+    obstacleDelayMax: 1.55,
+    gravity: 2100,
+    jumpStrength: 760,
+    doubleJumpMultiplier: 0.94,
+  };
+  const world = { groundY: 430 };
+  const state = createGameState(difficulty, 0);
+  const player = createPlayer(world, difficulty);
+  const runtime = {
+    didBeatRecordOnDeath: false,
+    deathFallDuration: 0.96,
+    isPlayerHeadInImpactState: false,
+    hitAnimationTime: null,
+  };
+
+  state.gameOver = true;
+  state.gameOverAnimationTime = 15 / 12;
+
+  const kneelingAnimation = createPlayerAnimationFromVisualState(
+    PLAYER_VISUAL_STATES.GAME_OVER,
+    state,
+    player,
+    runtime
+  );
+  assert.equal(kneelingAnimation.frameIndex, 15);
+  assert.ok(kneelingAnimation.visualScale > 1);
+
+  state.gameOverAnimationTime = 40 / 12;
+
+  const finalLoopAnimation = createPlayerAnimationFromVisualState(
+    PLAYER_VISUAL_STATES.GAME_OVER,
+    state,
+    player,
+    runtime
+  );
+  assert.equal(finalLoopAnimation.frameIndex, 40);
+  assert.equal(finalLoopAnimation.visualScale, 1);
+});
+
+test("overlay action button reacts on pointerdown without double firing the fallback click", () => {
+  const documentRef = new EventTarget();
+  const canvas = new EventTarget();
+  const actionButton = new EventTarget();
+  const touchJumpButton = new EventTarget();
+  let actionButtonCalls = 0;
+
+  const cleanup = bindInput({
+    documentRef,
+    canvas,
+    actionButton,
+    touchJumpButton,
+    onPrimaryAction: () => {},
+    onActionButtonClick: () => {
+      actionButtonCalls += 1;
+    },
+    canTriggerPrimaryAction: () => true,
+  });
+
+  actionButton.dispatchEvent(new Event("pointerdown", { cancelable: true }));
+  actionButton.dispatchEvent(new Event("click", { cancelable: true }));
+  actionButton.dispatchEvent(new Event("click", { cancelable: true }));
+
+  cleanup();
+
+  assert.equal(actionButtonCalls, 2);
+});
+
 test("victory state stays on win and loops over the last four frames", () => {
   const difficulty = {
     startSpeed: 320,
@@ -256,7 +392,7 @@ test("victory state stays on win and loops over the last four frames", () => {
   assert.ok(animation.frameIndex <= 82);
 });
 
-test("home idle animation loops across the full papillon sequence", () => {
+test("home idle animation loops across the full 57-frame idle sequence", () => {
   const difficulty = {
     startSpeed: 320,
     maxSpeedFactor: 1.35,
@@ -279,13 +415,13 @@ test("home idle animation loops across the full papillon sequence", () => {
   state.headSwingTime = 0;
   let animation = createPlayerAnimationFromVisualState(PLAYER_VISUAL_STATES.IDLE, state, player, runtime);
   assert.equal(animation.frameIndex, 0);
-  assert.equal(animation.height > 220, true);
+  assert.equal(animation.height, 220);
 
-  state.headSwingTime = 70 / 5;
+  state.headSwingTime = 56 / 5;
   animation = createPlayerAnimationFromVisualState(PLAYER_VISUAL_STATES.IDLE, state, player, runtime);
-  assert.equal(animation.frameIndex, 70);
+  assert.equal(animation.frameIndex, 56);
 
-  state.headSwingTime = 71 / 5;
+  state.headSwingTime = 57 / 5;
   animation = createPlayerAnimationFromVisualState(PLAYER_VISUAL_STATES.IDLE, state, player, runtime);
   assert.equal(animation.frameIndex, 0);
 });

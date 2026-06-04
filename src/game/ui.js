@@ -8,7 +8,6 @@ export function createUI({
   loadingProgress,
   loadingProgressText,
   actionButton,
-  resetScoresButton,
   recordValue,
   scoreValue,
   coinValue,
@@ -19,61 +18,54 @@ export function createUI({
   touchJumpButton,
 }, browser) {
   const heartBreakTimers = new Map();
+  const overlayScoreFlash = browser.documentRef.createElement("div");
+  const overlayScoreFlashValue = browser.documentRef.createElement("span");
   const renderCache = {
     bestScoreText: null,
     coinText: null,
     loadingLabel: null,
     loadingPercent: null,
+    overlayScoreText: null,
     scoreText: null,
   };
   const HOME_LOGO_MARKUP = `
-    <span class="overlay-logo-word" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--r">R</span>
-      <span class="overlay-logo-letter overlay-logo-letter--u">U</span>
-      <span class="overlay-logo-letter overlay-logo-letter--n">N</span>
-    </span>
-    <span class="overlay-logo-amp" aria-hidden="true">&amp;</span>
-    <span class="overlay-logo-word" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--d">D</span>
-      <span class="overlay-logo-letter overlay-logo-letter--e">E</span>
-      <span class="overlay-logo-letter overlay-logo-letter--b">B</span>
-      <span class="overlay-logo-letter overlay-logo-letter--u2">U</span>
-      <span class="overlay-logo-letter overlay-logo-letter--g">G</span>
+    <span class="overlay-logo-image-shell" aria-hidden="true">
+      <img
+        class="overlay-logo-image"
+        src="./assets/titre%20run%20debug.svg"
+        alt=""
+      />
     </span>
   `;
   const GAME_OVER_LOGO_MARKUP = `
-    <span class="overlay-logo-word overlay-logo-word--game-over" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--g">G</span>
-      <span class="overlay-logo-letter overlay-logo-letter--a">A</span>
-      <span class="overlay-logo-letter overlay-logo-letter--m">M</span>
-      <span class="overlay-logo-letter overlay-logo-letter--e">E</span>
-    </span>
-    <span class="overlay-logo-word overlay-logo-word--game-over" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--o">O</span>
-      <span class="overlay-logo-letter overlay-logo-letter--v">V</span>
-      <span class="overlay-logo-letter overlay-logo-letter--e2">E</span>
-      <span class="overlay-logo-letter overlay-logo-letter--r2">R</span>
+    <span class="overlay-logo-badge overlay-logo-badge--game-over" aria-hidden="true">
+      <img
+        class="overlay-logo-image overlay-logo-image--game-over"
+        src="./assets/GAMEOVER.svg"
+        alt=""
+      />
     </span>
   `;
   const NEW_RECORD_LOGO_MARKUP = `
-    <span class="overlay-logo-word overlay-logo-word--new-record" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--n">N</span>
-      <span class="overlay-logo-letter overlay-logo-letter--o">O</span>
-      <span class="overlay-logo-letter overlay-logo-letter--u3">U</span>
-      <span class="overlay-logo-letter overlay-logo-letter--v2">V</span>
-      <span class="overlay-logo-letter overlay-logo-letter--e3">E</span>
-      <span class="overlay-logo-letter overlay-logo-letter--a2">A</span>
-      <span class="overlay-logo-letter overlay-logo-letter--u4">U</span>
-    </span>
-    <span class="overlay-logo-word overlay-logo-word--new-record" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--r3">R</span>
-      <span class="overlay-logo-letter overlay-logo-letter--e4">E</span>
-      <span class="overlay-logo-letter overlay-logo-letter--c">C</span>
-      <span class="overlay-logo-letter overlay-logo-letter--o2">O</span>
-      <span class="overlay-logo-letter overlay-logo-letter--r4">R</span>
-      <span class="overlay-logo-letter overlay-logo-letter--d2">D</span>
+    <span class="overlay-logo-badge overlay-logo-badge--new-record" aria-hidden="true">
+      <img
+        class="overlay-logo-image overlay-logo-image--new-record"
+        src="./assets/NOUVEAURECORD.svg"
+        alt=""
+      />
     </span>
   `;
+
+  overlayScoreFlash.className = "overlay-record-score";
+  overlayScoreFlash.setAttribute("aria-hidden", "true");
+  overlayScoreFlashValue.className = "overlay-record-score__value";
+  overlayScoreFlashValue.textContent = "0";
+  overlayScoreFlash.append(overlayScoreFlashValue);
+  overlayText.before(overlayScoreFlash);
+
+  function clearOverlayHomeFeedback() {
+    overlay.classList.remove("overlay--home-feedback");
+  }
 
   function applyOverlayScreen(screen) {
     const activeScreen = screen ?? "default";
@@ -93,10 +85,13 @@ export function createUI({
 
   function renderOverlayTitle(title, screen) {
     overlayTitle.classList.remove("overlay-title--logo");
+    overlayTitle.classList.remove("overlay-title--image");
+    overlayTitle.classList.remove("overlay-title--record-badge");
     overlayTitle.removeAttribute("aria-label");
 
     if (screen === "home" && title === "Run & Debug") {
       overlayTitle.classList.add("overlay-title--logo");
+      overlayTitle.classList.add("overlay-title--image");
       overlayTitle.setAttribute("aria-label", title);
       overlayTitle.innerHTML = HOME_LOGO_MARKUP;
       return;
@@ -104,6 +99,7 @@ export function createUI({
 
     if (screen === "end" && title === "GAME OVER") {
       overlayTitle.classList.add("overlay-title--logo");
+      overlayTitle.classList.add("overlay-title--image");
       overlayTitle.setAttribute("aria-label", title);
       overlayTitle.innerHTML = GAME_OVER_LOGO_MARKUP;
       return;
@@ -111,6 +107,7 @@ export function createUI({
 
     if (screen === "end" && title === "NOUVEAU RECORD") {
       overlayTitle.classList.add("overlay-title--logo");
+      overlayTitle.classList.add("overlay-title--record-badge");
       overlayTitle.setAttribute("aria-label", title);
       overlayTitle.innerHTML = NEW_RECORD_LOGO_MARKUP;
       return;
@@ -119,7 +116,7 @@ export function createUI({
     overlayTitle.textContent = title;
   }
 
-  function updateLoadingProgress({ loaded = 0, total = 0, progress = 0 } = {}) {
+  function updateLoadingProgress({ loaded = 0, total = 0, progress = 0, label = null } = {}) {
     if (!loadingProgress || !loadingProgressText) {
       return;
     }
@@ -128,9 +125,11 @@ export function createUI({
       ? Math.max(0, Math.min(progress, 1))
       : 0;
     const roundedPercent = Math.round(safeProgress * 100);
-    const loadingLabel = total > 0
-      ? `Chargement des assets ${loaded}/${total} (${roundedPercent}%)`
-      : `Chargement des assets (${roundedPercent}%)`;
+    const loadingLabel = label ?? (
+      total > 0
+        ? `Chargement des assets ${loaded}/${total} (${roundedPercent}%)`
+        : `Chargement des assets (${roundedPercent}%)`
+    );
 
     if (renderCache.loadingPercent !== roundedPercent) {
       loadingProgress.style.width = `${roundedPercent}%`;
@@ -144,7 +143,27 @@ export function createUI({
     }
   }
 
+  function setOverlayRecordScore(score) {
+    const shouldHighlightScore = Number.isFinite(score);
+
+    overlay.classList.toggle("overlay--score-flash", shouldHighlightScore);
+    overlayScoreFlash.setAttribute("aria-hidden", String(!shouldHighlightScore));
+
+    if (!shouldHighlightScore) {
+      renderCache.overlayScoreText = null;
+      return;
+    }
+
+    const nextOverlayScoreText = String(Math.floor(score));
+
+    if (renderCache.overlayScoreText !== nextOverlayScoreText) {
+      overlayScoreFlashValue.textContent = nextOverlayScoreText;
+      renderCache.overlayScoreText = nextOverlayScoreText;
+    }
+  }
+
   function showLoadingOverlay(progressState) {
+    clearOverlayHomeFeedback();
     applyOverlayScreen("loading");
     if (overlayTag) {
       overlayTag.textContent = "Initialisation";
@@ -153,6 +172,7 @@ export function createUI({
     overlayText.textContent = "Preparation des sprites et de l'interface pour un demarrage fluide.";
     actionButton.textContent = "";
     overlay.classList.remove("overlay--record");
+    setOverlayRecordScore(null);
     overlay.setAttribute("aria-busy", "true");
     overlay.classList.add("visible");
     updateLoadingProgress(progressState);
@@ -161,10 +181,12 @@ export function createUI({
   function showOverlay(title, text, buttonLabel, options = {}) {
     const {
       celebrateRecord = false,
+      highlightScore = null,
       screen = "default",
       tag = "",
     } = options;
 
+    clearOverlayHomeFeedback();
     applyOverlayScreen(screen);
     if (overlayTag) {
       overlayTag.textContent = tag;
@@ -173,13 +195,16 @@ export function createUI({
     overlayText.textContent = text;
     actionButton.textContent = buttonLabel;
     overlay.classList.toggle("overlay--record", celebrateRecord);
+    setOverlayRecordScore(highlightScore);
     overlay.setAttribute("aria-busy", "false");
     overlay.classList.add("visible");
   }
 
   function hideOverlay() {
+    clearOverlayHomeFeedback();
     applyOverlayScreen("default");
     overlay.classList.remove("overlay--record");
+    setOverlayRecordScore(null);
     overlay.setAttribute("aria-busy", "false");
     overlay.classList.remove("visible");
   }
@@ -289,11 +314,27 @@ export function createUI({
       button.dataset[selectedDatasetKey] = option.id;
       button.setAttribute("role", "radio");
       button.setAttribute("aria-checked", String(option.id === currentId));
+      let handledByPointer = false;
       button.innerHTML = `
         <span class="difficulty-option__label">${option.label}</span>
         <span class="difficulty-option__description">${option.description}</span>
       `;
-      button.addEventListener("click", () => onChange(option.id));
+      button.addEventListener("pointerdown", (event) => {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+
+        handledByPointer = true;
+        onChange(option.id);
+      });
+      button.addEventListener("click", () => {
+        if (handledByPointer) {
+          handledByPointer = false;
+          return;
+        }
+
+        onChange(option.id);
+      });
       container.appendChild(button);
     });
   }
@@ -335,12 +376,7 @@ export function createUI({
     settingsButton.classList.toggle("is-active", active);
   }
 
-  function announceScoresReset(bestScore) {
-    overlayText.textContent = `Le score et les records ont ete remis a zero.\nRecord actuel : ${bestScore}`;
-  }
-
   return {
-    announceScoresReset,
     breakHeart,
     clearHeartBreakTimers,
     hideOverlay,

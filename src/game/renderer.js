@@ -35,5 +35,8 @@ export function createRenderer(ctx, world) {
 
   return {
     draw,
+    warmAssets(options) {
+      return playerRenderer.warmAssets(options);
+    },
   };
 }

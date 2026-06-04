@@ -339,13 +339,13 @@
   var heartLifeLostAsset = createLazyImageAsset(new URL("./assets/heart-life-lost.svg", document.baseURI).href);
   var bonusHeartAsset = createLazyImageAsset(new URL("./assets/coeur.svg", document.baseURI).href);
   var coinAsset = createLazyImageAsset(new URL("./assets/dollar.png", document.baseURI).href);
-  var playerIdleIntroFrameAssets = Array.from({ length: 71 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/idle/papillon/${index + 1}.svg`, document.baseURI).href));
-  var playerIdleFrameAssets = Array.from({ length: 26 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/idle/${index + 1}.svg`, document.baseURI).href));
+  var playerIdleIntroFrameAssets = Array.from({ length: 57 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/idle/idle/${index + 1}.svg`, document.baseURI).href));
+  var playerIdleFrameAssets = Array.from({ length: 26 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/idle/idel 2/${index + 1}.svg`, document.baseURI).href));
   var playerRunFrameAssets = Array.from({ length: 15 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/court/${index + 1}.svg`, document.baseURI).href));
   var playerJumpFrameAssets = Array.from({ length: 8 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/saut/${index + 1}.svg`, document.baseURI).href));
   var playerDoubleJumpFrameAssets = Array.from({ length: 6 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/doublesaut/${index + 1}.svg`, document.baseURI).href));
   var playerHitFrameAssets = Array.from({ length: 4 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/hit/${index + 1}.svg`, document.baseURI).href));
-  var playerGameOverFrameAssets = Array.from({ length: 20 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/game over/${index + 1}.svg`, document.baseURI).href));
+  var playerGameOverFrameAssets = Array.from({ length: 47 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/game over/${index + 1}.svg`, document.baseURI).href));
   var playerWinFrameAssets = Array.from({ length: 83 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/win/Win2/${index + 1}.svg`, document.baseURI).href));
   var cloudAssets = [
     createLazyImageAsset(new URL("./assets/decor/nuage1.svg", document.baseURI).href),
@@ -712,17 +712,35 @@
     const progress = Math.min(0.999, deathFallTime / deathFallDuration);
     return Math.min(frameCount - 1, Math.floor(progress * frameCount));
   }
-  function getWinFrameIndex(animationTime, frameCount, framesPerSecond = 3.2, loopTailCount = 4) {
-    if (frameCount <= 0 || framesPerSecond <= 0) {
+  function getIntroThenLoopTailFrameIndex(animationTime, frameCount, introFramesPerSecond = 3.2, loopTailCount = 4, loopFramesPerSecond = introFramesPerSecond) {
+    if (frameCount <= 0 || introFramesPerSecond <= 0 || loopFramesPerSecond <= 0) {
       return 0;
     }
-    const frameStep = Math.floor(animationTime * framesPerSecond);
-    if (frameStep < frameCount) {
-      return frameStep;
-    }
     const loopLength = Math.max(1, Math.min(loopTailCount, frameCount));
+    const introLength = Math.max(0, frameCount - loopLength);
+    if (introLength === 0) {
+      return Math.floor(animationTime * loopFramesPerSecond) % frameCount;
+    }
+    const introDuration = introLength / introFramesPerSecond;
+    if (animationTime < introDuration) {
+      return Math.min(introLength - 1, Math.floor(animationTime * introFramesPerSecond));
+    }
     const loopStart = frameCount - loopLength;
-    return loopStart + (frameStep - frameCount) % loopLength;
+    const loopTime = animationTime - introDuration;
+    const loopStep = Math.floor(loopTime * loopFramesPerSecond);
+    if (loopStep < loopLength) {
+      return loopStart + loopStep;
+    }
+    return loopStart + (loopStep - loopLength) % loopLength;
+  }
+  function getWinFrameIndex(animationTime, frameCount, introFramesPerSecond = 3.2, loopTailCount = 4, loopFramesPerSecond = introFramesPerSecond) {
+    return getIntroThenLoopTailFrameIndex(
+      animationTime,
+      frameCount,
+      introFramesPerSecond,
+      loopTailCount,
+      loopFramesPerSecond
+    );
   }
   function createClouds() {
     return [
@@ -824,8 +842,9 @@
   }
 
   // src/game/gameplay-loop.js
-  var IMPACT_SLOWDOWN_DURATION = 5;
+  var IMPACT_SLOWDOWN_DURATION = 1.5;
   var IMPACT_MIN_TRAVEL_MULTIPLIER = 0.42;
+  var IMPACT_OBSTACLE_SPAWN_PAUSE_DURATION = 1.5;
   function computeFrameDelta(timestamp, lastTime, maxDelta = 0.033) {
     if (!lastTime) {
       return {
@@ -878,11 +897,17 @@
   function getEffectiveTravelSpeed(state, cooldownDuration = IMPACT_SLOWDOWN_DURATION) {
     return state.speed * getImpactTravelMultiplier(state.hitCooldown, cooldownDuration);
   }
+  function isObstacleSpawnPausedAfterHit(hitCooldown, cooldownDuration = IMPACT_SLOWDOWN_DURATION, pauseDuration = IMPACT_OBSTACLE_SPAWN_PAUSE_DURATION) {
+    if (hitCooldown <= 0 || cooldownDuration <= 0 || pauseDuration <= 0) {
+      return false;
+    }
+    return hitCooldown > Math.max(0, cooldownDuration - pauseDuration);
+  }
   function computeNextRunCycle(runCycle, speed, deltaTime) {
     return runCycle + deltaTime * Math.max(13.5, speed * 0.044);
   }
   function shouldSpawnObstacleNow(state, runtime) {
-    return !state.pendingGameOver && !state.pendingVictory && !runtime.isPlayerHeadInImpactState && state.obstacleTimer >= state.nextObstacleIn;
+    return !state.pendingGameOver && !state.pendingVictory && !runtime.isPlayerHeadInImpactState && !isObstacleSpawnPausedAfterHit(state.hitCooldown ?? 0) && state.obstacleTimer >= state.nextObstacleIn;
   }
   function createPostSpawnStateUpdate(state, difficulty) {
     return {
@@ -1831,10 +1856,10 @@ Mode : ${difficultyLabel}`
   var PLAYER_VISUAL_HEIGHT = 206;
   var PLAYER_LAYOUTS = {
     homeIdle: {
-      width: 330,
-      height: 400,
-      offsetY: -54,
-      groundOffsetY: 58
+      width: 186,
+      height: 220,
+      offsetY: -14,
+      groundOffsetY: 10
     },
     idle: {
       width: 186,
@@ -1873,35 +1898,45 @@ Mode : ${difficultyLabel}`
       groundOffsetY: 12
     },
     gameOver: {
-      width: 194,
-      height: 206,
-      offsetY: -2,
-      groundOffsetY: 12
+      width: 212,
+      height: 226,
+      offsetY: -14,
+      groundOffsetY: 10
     },
     win: {
-      width: 158,
-      height: PLAYER_VISUAL_HEIGHT,
-      offsetY: -2,
+      width: 186,
+      height: 238,
+      offsetY: -6,
       groundOffsetY: 10
     }
   };
   var HIT_ANIMATION_FRAMES_PER_SECOND = 8;
-  var GAME_OVER_ANIMATION_FRAMES_PER_SECOND = 12;
-  var WIN_ANIMATION_FRAMES_PER_SECOND = 3.2;
+  var GAME_OVER_ANIMATION_INTRO_FRAMES_PER_SECOND = 12;
+  var GAME_OVER_ANIMATION_LOOP_FRAMES_PER_SECOND = 12;
+  var GAME_OVER_ANIMATION_LOOP_TAIL_COUNT = 7;
+  var GAME_OVER_FRAME_SCALE_OVERRIDES = {
+    14: 1.13,
+    15: 1.13,
+    16: 1.18,
+    17: 1.22,
+    18: 1.18
+  };
+  var WIN_ANIMATION_INTRO_FRAMES_PER_SECOND = 6.2;
+  var WIN_ANIMATION_LOOP_FRAMES_PER_SECOND = 5.4;
+  var WIN_ANIMATION_LOOP_TAIL_COUNT = 4;
   var HOME_IDLE_ANIMATION_FRAMES_PER_SECOND = 5;
   var IDLE_ANIMATION_FRAMES_PER_SECOND = 4;
   var PLAYER_FRAME_COUNTS = {
-    idleIntro: 71,
+    idleIntro: 57,
     run: 15,
     jump: 8,
     doubleJump: 6,
     chute: 5,
     idle: 26,
     hit: 4,
-    gameOver: 20,
+    gameOver: 47,
     win: 83
   };
-  var GAME_OVER_ANIMATION_DURATION = PLAYER_FRAME_COUNTS.gameOver / GAME_OVER_ANIMATION_FRAMES_PER_SECOND;
   function getLoopingFrameIndex(animationTime, frameCount, framesPerSecond) {
     if (frameCount <= 0 || framesPerSecond <= 0) {
       return 0;
@@ -1910,7 +1945,6 @@ Mode : ${difficultyLabel}`
   }
   var PLAYER_VISUAL_STATES = {
     IDLE: "idle",
-    POST_GAME_IDLE: "post-game-idle",
     RUNNING: "running",
     JUMPING: "jumping",
     DOUBLE_JUMPING: "double-jumping",
@@ -1921,9 +1955,6 @@ Mode : ${difficultyLabel}`
   };
   function resolvePlayerVisualState(state, player, runtime) {
     if (state.gameOver) {
-      if (!runtime.didBeatRecordOnDeath && state.gameOverAnimationTime >= GAME_OVER_ANIMATION_DURATION) {
-        return PLAYER_VISUAL_STATES.POST_GAME_IDLE;
-      }
       return runtime.didBeatRecordOnDeath ? PLAYER_VISUAL_STATES.VICTORY : PLAYER_VISUAL_STATES.GAME_OVER;
     }
     if (!state.gameStarted) {
@@ -1949,7 +1980,9 @@ Mode : ${difficultyLabel}`
           frameIndex: getWinFrameIndex(
             state.gameOverAnimationTime,
             PLAYER_FRAME_COUNTS.win,
-            WIN_ANIMATION_FRAMES_PER_SECOND
+            WIN_ANIMATION_INTRO_FRAMES_PER_SECOND,
+            WIN_ANIMATION_LOOP_TAIL_COUNT,
+            WIN_ANIMATION_LOOP_FRAMES_PER_SECOND
           ),
           ...PLAYER_LAYOUTS.win,
           allowSwing: false,
@@ -1961,12 +1994,17 @@ Mode : ${difficultyLabel}`
           motionPhase: state.headSwingTime * 1.2
         };
       case PLAYER_VISUAL_STATES.GAME_OVER: {
-        const gameOverFrameStep = Math.floor(state.gameOverAnimationTime * GAME_OVER_ANIMATION_FRAMES_PER_SECOND);
-        const frameCount = PLAYER_FRAME_COUNTS.gameOver;
+        const frameIndex = getIntroThenLoopTailFrameIndex(
+          state.gameOverAnimationTime,
+          PLAYER_FRAME_COUNTS.gameOver,
+          GAME_OVER_ANIMATION_INTRO_FRAMES_PER_SECOND,
+          GAME_OVER_ANIMATION_LOOP_TAIL_COUNT,
+          GAME_OVER_ANIMATION_LOOP_FRAMES_PER_SECOND
+        );
         return {
           visualState,
           sheet: "gameOver",
-          frameIndex: gameOverFrameStep < frameCount ? gameOverFrameStep % frameCount : frameCount - 1,
+          frameIndex,
           ...PLAYER_LAYOUTS.gameOver,
           allowSwing: false,
           swingAmplitude: 0,
@@ -1974,7 +2012,8 @@ Mode : ${difficultyLabel}`
           tiltAmplitude: 0.015,
           bobAmplitude: 0,
           strideAmplitude: 0,
-          motionPhase: state.headSwingTime * 1.4
+          motionPhase: state.headSwingTime * 1.4,
+          visualScale: GAME_OVER_FRAME_SCALE_OVERRIDES[frameIndex] ?? 1
         };
       }
       case PLAYER_VISUAL_STATES.FALLING:
@@ -2057,7 +2096,6 @@ Mode : ${difficultyLabel}`
           motionPhase: runPhase
         };
       }
-      case PLAYER_VISUAL_STATES.POST_GAME_IDLE:
       case PLAYER_VISUAL_STATES.IDLE:
       default: {
         if (visualState === PLAYER_VISUAL_STATES.IDLE) {
@@ -2079,12 +2117,11 @@ Mode : ${difficultyLabel}`
             motionPhase: 0
           };
         }
-        const idleLoopTime = state.gameOverAnimationTime - GAME_OVER_ANIMATION_DURATION;
         return {
           visualState,
           sheet: "idle",
           frameIndex: getLoopingFrameIndex(
-            idleLoopTime,
+            state.headSwingTime,
             PLAYER_FRAME_COUNTS.idle,
             IDLE_ANIMATION_FRAMES_PER_SECOND
           ),
@@ -2220,6 +2257,8 @@ Mode : ${difficultyLabel}`
     const sequenceBoundsCache = /* @__PURE__ */ new Map();
     const videoFrameCanvas = createCanvas(1, 1);
     const videoFrameCtx = videoFrameCanvas.getContext("2d", { willReadFrequently: true });
+    let warmAssetsPromise = null;
+    let areAssetsWarmed = false;
     function getStaticSourceCanvas(assetKey, sourceImage, clip, matte) {
       const clipKey = clip ? `${clip.x}:${clip.y}:${clip.width}:${clip.height}` : "full";
       const cacheKey = `${assetKey}:${clipKey}:${matte}:source`;
@@ -2386,6 +2425,104 @@ Mode : ${difficultyLabel}`
           };
       }
     }
+    function getPlayerVisualDescriptors() {
+      return Object.entries(playerVisualAssets).map(([sequenceKey, settings]) => ({
+        sequenceKey,
+        frameAssets: settings.frameAssets,
+        matte: settings.matte,
+        preserveFrameBounds: settings.preserveFrameBounds ?? false
+      }));
+    }
+    function scheduleNextBatch(callback) {
+      globalThis.setTimeout(callback, 0);
+    }
+    function warmAssets({ onProgress, batchSize = 6 } = {}) {
+      if (areAssetsWarmed) {
+        onProgress?.({
+          loaded: 1,
+          total: 1,
+          progress: 1,
+          label: "Preparation des animations terminee"
+        });
+        return Promise.resolve();
+      }
+      if (warmAssetsPromise) {
+        return warmAssetsPromise;
+      }
+      const tasks = [];
+      for (const descriptor of getPlayerVisualDescriptors()) {
+        if (descriptor.preserveFrameBounds) {
+          tasks.push({
+            type: "sequence-bounds",
+            ...descriptor
+          });
+        }
+        for (const frameAsset of descriptor.frameAssets) {
+          tasks.push({
+            type: "frame",
+            ...descriptor,
+            frameAsset
+          });
+        }
+      }
+      const total = tasks.length;
+      let completed = 0;
+      onProgress?.({
+        loaded: completed,
+        total,
+        progress: total > 0 ? 0 : 1,
+        label: "Preparation des animations 0/" + total
+      });
+      warmAssetsPromise = new Promise((resolve, reject) => {
+        const runBatch = () => {
+          try {
+            for (let index = 0; index < batchSize && completed < total; index += 1) {
+              const task = tasks[completed];
+              if (task.type === "sequence-bounds") {
+                getSequenceBounds(task.sequenceKey, task.frameAssets, task.matte);
+              } else {
+                if (!task.frameAsset.image || !isImageReady(task.frameAsset.image)) {
+                  throw new Error(`Player frame not ready during warm-up: ${task.sequenceKey}`);
+                }
+                const sequenceBounds = task.preserveFrameBounds ? getSequenceBounds(task.sequenceKey, task.frameAssets, task.matte) : null;
+                const assetKey = task.frameAsset.image.currentSrc || task.frameAsset.image.src || task.sequenceKey;
+                getStaticProcessedClip(
+                  assetKey,
+                  task.frameAsset.image,
+                  null,
+                  task.matte,
+                  task.preserveFrameBounds,
+                  sequenceBounds
+                );
+              }
+              completed += 1;
+            }
+            onProgress?.({
+              loaded: completed,
+              total,
+              progress: total > 0 ? completed / total : 1,
+              label: `Preparation des animations ${completed}/${total}`
+            });
+            if (completed < total) {
+              scheduleNextBatch(runBatch);
+              return;
+            }
+            areAssetsWarmed = true;
+            resolve();
+          } catch (error) {
+            warmAssetsPromise = null;
+            reject(error);
+          }
+        };
+        if (total === 0) {
+          areAssetsWarmed = true;
+          resolve();
+          return;
+        }
+        runBatch();
+      });
+      return warmAssetsPromise;
+    }
     function draw(state, player, runtime) {
       const visualState = resolvePlayerVisualState(state, player, runtime);
       const animation = createPlayerAnimationFromVisualState(visualState, state, player, runtime);
@@ -2433,8 +2570,10 @@ Mode : ${difficultyLabel}`
       const maxWidth = animation.width ?? sourceWidth;
       const maxHeight = animation.height ?? sourceHeight;
       const baseScale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight);
-      const drawWidth = sourceWidth * baseScale;
-      const drawHeight = sourceHeight * baseScale;
+      const visualScale = animation.visualScale ?? 1;
+      const finalScale = baseScale * visualScale;
+      const drawWidth = sourceWidth * finalScale;
+      const drawHeight = sourceHeight * finalScale;
       const drawX = footX - drawWidth * 0.5 + strideShift;
       const drawY = footY - drawHeight + animation.offsetY + bodyLift;
       ctx.save();
@@ -2445,7 +2584,8 @@ Mode : ${difficultyLabel}`
       ctx.restore();
     }
     return {
-      draw
+      draw,
+      warmAssets
     };
   }
 
@@ -2471,7 +2611,10 @@ Mode : ${difficultyLabel}`
       }
     }
     return {
-      draw
+      draw,
+      warmAssets(options) {
+        return playerRenderer.warmAssets(options);
+      }
     };
   }
 
@@ -2647,12 +2790,6 @@ Mode : ${difficultyLabel}`
     } catch {
     }
   }
-  function resetBestScores() {
-    try {
-      window.localStorage.removeItem(BEST_SCORE_STORAGE_KEY);
-    } catch {
-    }
-  }
   function loadPreferredDifficulty() {
     return safeRead(DIFFICULTY_STORAGE_KEY, "normal");
   }
@@ -2679,6 +2816,7 @@ Mode : ${difficultyLabel}`
     const FOREST_TO_VALLEY_BRIDGE_LOOPS = 1;
     const VALLEY_MIDGROUND_SEQUENCE_LAST_INDEX = 7;
     const HIT_ANIMATION_DURATION = 0.5;
+    const HIT_INVULNERABILITY_DURATION = 1.5;
     const ctx = canvas2.getContext("2d");
     const world = createWorld();
     const renderer = createRenderer(ctx, world);
@@ -2695,7 +2833,6 @@ Mode : ${difficultyLabel}`
     let bugHitEffects = [];
     let clouds = [];
     let cleanupInput = null;
-    let cleanupResetScores = null;
     let cleanupSettingsButton = null;
     let cleanupViewportResize = null;
     let isSettingsOverlayOpen = false;
@@ -2757,7 +2894,7 @@ Mode : ${difficultyLabel}`
       }
       obstacles = removeEntity(obstacles, obstacle);
       state.lives = Math.max(0, state.lives - 1);
-      state.hitCooldown = 5;
+      state.hitCooldown = HIT_INVULNERABILITY_DURATION;
       view2.breakHeart(state.lives, state.lives);
       if (state.lives === 0) {
         clearHeadImpactTimer();
@@ -2887,7 +3024,7 @@ Mode : ${difficultyLabel}`
         "Reprendre",
         {
           screen: "settings",
-          tag: "Options"
+          tag: "Param\xE8tres"
         }
       );
       syncTouchMode();
@@ -2903,13 +3040,6 @@ Mode : ${difficultyLabel}`
         startGame();
       }
     }
-    function resetScores() {
-      resetBestScores();
-      state.bestScore = 0;
-      updateHudDisplay();
-      initGame();
-      view2.announceScoresReset(state.bestScore);
-    }
     function endGame() {
       isSettingsOverlayOpen = false;
       clearHeadImpactTimer();
@@ -2924,6 +3054,7 @@ Mode : ${difficultyLabel}`
         "Essaye encore",
         {
           celebrateRecord: gameOverSnapshot.isNewRecord,
+          highlightScore: gameOverSnapshot.isNewRecord ? gameOverSnapshot.finalScore : null,
           screen: "end",
           tag: gameOverSnapshot.isNewRecord ? "Victoire" : "Game Over"
         }
@@ -3041,13 +3172,14 @@ Mode : ${difficultyLabel}`
       browser2.requestAnimationFrame(update);
     }
     function start() {
+      const assetLoadProgressWeight = 0.78;
+      const playerWarmupProgressWeight = 1 - assetLoadProgressWeight;
       view2.setupLivesDisplay(MAX_LIVES, state.lives);
       view2.renderDifficultyOptions(DIFFICULTY_OPTIONS, difficulty.id, setDifficulty);
       view2.renderLevelOptions(LEVEL_OPTIONS, level.id, setLevel);
       view2.setDifficultySelection(difficulty.id);
       view2.setLevelSelection(level.id);
       view2.setActionButtonDisabled(true);
-      view2.setResetScoresButtonDisabled(true);
       view2.setSettingsButtonDisabled(true);
       syncTouchMode();
       clouds = createClouds();
@@ -3083,24 +3215,34 @@ Mode : ${difficultyLabel}`
       });
       cleanupViewportResize = view2.bindViewportResize(syncTouchMode);
       cleanupSettingsButton = view2.bindSettingsButton(() => {
-        openSettings();
-      });
-      cleanupResetScores = view2.bindResetScores(() => {
-        if (!runtime.assetsReady) {
+        if (isSettingsOverlayOpen) {
+          closeSettings();
           return;
         }
-        resetScores();
+        openSettings();
       });
       preloadCoreAssets({
         onProgress: (progressState) => {
-          view2.updateLoadingProgress(progressState);
+          view2.updateLoadingProgress({
+            ...progressState,
+            progress: progressState.progress * assetLoadProgressWeight
+          });
         }
       }).then(() => {
         runtime.assetsReady = true;
         view2.setActionButtonDisabled(false);
-        view2.setResetScoresButtonDisabled(false);
         view2.setSettingsButtonDisabled(false);
         initGame();
+        renderer.warmAssets({
+          onProgress: (progressState) => {
+            view2.updateLoadingProgress({
+              ...progressState,
+              progress: assetLoadProgressWeight + progressState.progress * playerWarmupProgressWeight
+            });
+          }
+        }).catch((error) => {
+          console.error(error);
+        });
       }).catch((error) => {
         console.error(error);
         view2.showOverlay("Run & Debug", "Impossible de charger les sprites du jeu.", "Recharge la page", {
@@ -3111,7 +3253,6 @@ Mode : ${difficultyLabel}`
     }
     function destroy() {
       cleanupInput?.();
-      cleanupResetScores?.();
       cleanupSettingsButton?.();
       cleanupViewportResize?.();
       clearHeadImpactTimer();
@@ -3133,6 +3274,7 @@ Mode : ${difficultyLabel}`
     onActionButtonClick,
     canTriggerPrimaryAction
   }) {
+    let suppressNextActionButtonClick = false;
     function handlePrimaryAction(event) {
       if (event.type === "keydown" && event.code !== "Space") {
         return;
@@ -3145,12 +3287,28 @@ Mode : ${difficultyLabel}`
       }
       onPrimaryAction(event);
     }
-    actionButton.addEventListener("click", onActionButtonClick);
+    function handleActionButtonPointerDown(event) {
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      suppressNextActionButtonClick = true;
+      onActionButtonClick(event);
+    }
+    function handleActionButtonClick(event) {
+      if (suppressNextActionButtonClick) {
+        suppressNextActionButtonClick = false;
+        return;
+      }
+      onActionButtonClick(event);
+    }
+    actionButton.addEventListener("pointerdown", handleActionButtonPointerDown);
+    actionButton.addEventListener("click", handleActionButtonClick);
     documentRef.addEventListener("keydown", handlePrimaryAction);
     canvas2.addEventListener("pointerdown", handlePrimaryAction);
     touchJumpButton.addEventListener("pointerdown", handlePrimaryAction);
     return () => {
-      actionButton.removeEventListener("click", onActionButtonClick);
+      actionButton.removeEventListener("pointerdown", handleActionButtonPointerDown);
+      actionButton.removeEventListener("click", handleActionButtonClick);
       documentRef.removeEventListener("keydown", handlePrimaryAction);
       canvas2.removeEventListener("pointerdown", handlePrimaryAction);
       touchJumpButton.removeEventListener("pointerdown", handlePrimaryAction);
@@ -3166,7 +3324,6 @@ Mode : ${difficultyLabel}`
     loadingProgress,
     loadingProgressText,
     actionButton,
-    resetScoresButton,
     recordValue,
     scoreValue,
     coinValue,
@@ -3177,61 +3334,52 @@ Mode : ${difficultyLabel}`
     touchJumpButton
   }, browser2) {
     const heartBreakTimers = /* @__PURE__ */ new Map();
+    const overlayScoreFlash = browser2.documentRef.createElement("div");
+    const overlayScoreFlashValue = browser2.documentRef.createElement("span");
     const renderCache = {
       bestScoreText: null,
       coinText: null,
       loadingLabel: null,
       loadingPercent: null,
+      overlayScoreText: null,
       scoreText: null
     };
     const HOME_LOGO_MARKUP = `
-    <span class="overlay-logo-word" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--r">R</span>
-      <span class="overlay-logo-letter overlay-logo-letter--u">U</span>
-      <span class="overlay-logo-letter overlay-logo-letter--n">N</span>
-    </span>
-    <span class="overlay-logo-amp" aria-hidden="true">&amp;</span>
-    <span class="overlay-logo-word" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--d">D</span>
-      <span class="overlay-logo-letter overlay-logo-letter--e">E</span>
-      <span class="overlay-logo-letter overlay-logo-letter--b">B</span>
-      <span class="overlay-logo-letter overlay-logo-letter--u2">U</span>
-      <span class="overlay-logo-letter overlay-logo-letter--g">G</span>
+    <span class="overlay-logo-image-shell" aria-hidden="true">
+      <img
+        class="overlay-logo-image"
+        src="./assets/titre%20run%20debug.svg"
+        alt=""
+      />
     </span>
   `;
     const GAME_OVER_LOGO_MARKUP = `
-    <span class="overlay-logo-word overlay-logo-word--game-over" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--g">G</span>
-      <span class="overlay-logo-letter overlay-logo-letter--a">A</span>
-      <span class="overlay-logo-letter overlay-logo-letter--m">M</span>
-      <span class="overlay-logo-letter overlay-logo-letter--e">E</span>
-    </span>
-    <span class="overlay-logo-word overlay-logo-word--game-over" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--o">O</span>
-      <span class="overlay-logo-letter overlay-logo-letter--v">V</span>
-      <span class="overlay-logo-letter overlay-logo-letter--e2">E</span>
-      <span class="overlay-logo-letter overlay-logo-letter--r2">R</span>
+    <span class="overlay-logo-badge overlay-logo-badge--game-over" aria-hidden="true">
+      <img
+        class="overlay-logo-image overlay-logo-image--game-over"
+        src="./assets/GAMEOVER.svg"
+        alt=""
+      />
     </span>
   `;
     const NEW_RECORD_LOGO_MARKUP = `
-    <span class="overlay-logo-word overlay-logo-word--new-record" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--n">N</span>
-      <span class="overlay-logo-letter overlay-logo-letter--o">O</span>
-      <span class="overlay-logo-letter overlay-logo-letter--u3">U</span>
-      <span class="overlay-logo-letter overlay-logo-letter--v2">V</span>
-      <span class="overlay-logo-letter overlay-logo-letter--e3">E</span>
-      <span class="overlay-logo-letter overlay-logo-letter--a2">A</span>
-      <span class="overlay-logo-letter overlay-logo-letter--u4">U</span>
-    </span>
-    <span class="overlay-logo-word overlay-logo-word--new-record" aria-hidden="true">
-      <span class="overlay-logo-letter overlay-logo-letter--r3">R</span>
-      <span class="overlay-logo-letter overlay-logo-letter--e4">E</span>
-      <span class="overlay-logo-letter overlay-logo-letter--c">C</span>
-      <span class="overlay-logo-letter overlay-logo-letter--o2">O</span>
-      <span class="overlay-logo-letter overlay-logo-letter--r4">R</span>
-      <span class="overlay-logo-letter overlay-logo-letter--d2">D</span>
+    <span class="overlay-logo-badge overlay-logo-badge--new-record" aria-hidden="true">
+      <img
+        class="overlay-logo-image overlay-logo-image--new-record"
+        src="./assets/NOUVEAURECORD.svg"
+        alt=""
+      />
     </span>
   `;
+    overlayScoreFlash.className = "overlay-record-score";
+    overlayScoreFlash.setAttribute("aria-hidden", "true");
+    overlayScoreFlashValue.className = "overlay-record-score__value";
+    overlayScoreFlashValue.textContent = "0";
+    overlayScoreFlash.append(overlayScoreFlashValue);
+    overlayText.before(overlayScoreFlash);
+    function clearOverlayHomeFeedback() {
+      overlay.classList.remove("overlay--home-feedback");
+    }
     function applyOverlayScreen(screen) {
       const activeScreen = screen ?? "default";
       overlay.dataset.screen = activeScreen;
@@ -3248,34 +3396,39 @@ Mode : ${difficultyLabel}`
     }
     function renderOverlayTitle(title, screen) {
       overlayTitle.classList.remove("overlay-title--logo");
+      overlayTitle.classList.remove("overlay-title--image");
+      overlayTitle.classList.remove("overlay-title--record-badge");
       overlayTitle.removeAttribute("aria-label");
       if (screen === "home" && title === "Run & Debug") {
         overlayTitle.classList.add("overlay-title--logo");
+        overlayTitle.classList.add("overlay-title--image");
         overlayTitle.setAttribute("aria-label", title);
         overlayTitle.innerHTML = HOME_LOGO_MARKUP;
         return;
       }
       if (screen === "end" && title === "GAME OVER") {
         overlayTitle.classList.add("overlay-title--logo");
+        overlayTitle.classList.add("overlay-title--image");
         overlayTitle.setAttribute("aria-label", title);
         overlayTitle.innerHTML = GAME_OVER_LOGO_MARKUP;
         return;
       }
       if (screen === "end" && title === "NOUVEAU RECORD") {
         overlayTitle.classList.add("overlay-title--logo");
+        overlayTitle.classList.add("overlay-title--record-badge");
         overlayTitle.setAttribute("aria-label", title);
         overlayTitle.innerHTML = NEW_RECORD_LOGO_MARKUP;
         return;
       }
       overlayTitle.textContent = title;
     }
-    function updateLoadingProgress({ loaded = 0, total = 0, progress = 0 } = {}) {
+    function updateLoadingProgress({ loaded = 0, total = 0, progress = 0, label = null } = {}) {
       if (!loadingProgress || !loadingProgressText) {
         return;
       }
       const safeProgress = Number.isFinite(progress) ? Math.max(0, Math.min(progress, 1)) : 0;
       const roundedPercent = Math.round(safeProgress * 100);
-      const loadingLabel = total > 0 ? `Chargement des assets ${loaded}/${total} (${roundedPercent}%)` : `Chargement des assets (${roundedPercent}%)`;
+      const loadingLabel = label ?? (total > 0 ? `Chargement des assets ${loaded}/${total} (${roundedPercent}%)` : `Chargement des assets (${roundedPercent}%)`);
       if (renderCache.loadingPercent !== roundedPercent) {
         loadingProgress.style.width = `${roundedPercent}%`;
         loadingProgress.setAttribute("aria-valuenow", String(roundedPercent));
@@ -3286,7 +3439,22 @@ Mode : ${difficultyLabel}`
         renderCache.loadingLabel = loadingLabel;
       }
     }
+    function setOverlayRecordScore(score) {
+      const shouldHighlightScore = Number.isFinite(score);
+      overlay.classList.toggle("overlay--score-flash", shouldHighlightScore);
+      overlayScoreFlash.setAttribute("aria-hidden", String(!shouldHighlightScore));
+      if (!shouldHighlightScore) {
+        renderCache.overlayScoreText = null;
+        return;
+      }
+      const nextOverlayScoreText = String(Math.floor(score));
+      if (renderCache.overlayScoreText !== nextOverlayScoreText) {
+        overlayScoreFlashValue.textContent = nextOverlayScoreText;
+        renderCache.overlayScoreText = nextOverlayScoreText;
+      }
+    }
     function showLoadingOverlay(progressState) {
+      clearOverlayHomeFeedback();
       applyOverlayScreen("loading");
       if (overlayTag) {
         overlayTag.textContent = "Initialisation";
@@ -3295,6 +3463,7 @@ Mode : ${difficultyLabel}`
       overlayText.textContent = "Preparation des sprites et de l'interface pour un demarrage fluide.";
       actionButton.textContent = "";
       overlay.classList.remove("overlay--record");
+      setOverlayRecordScore(null);
       overlay.setAttribute("aria-busy", "true");
       overlay.classList.add("visible");
       updateLoadingProgress(progressState);
@@ -3302,9 +3471,11 @@ Mode : ${difficultyLabel}`
     function showOverlay(title, text, buttonLabel, options = {}) {
       const {
         celebrateRecord = false,
+        highlightScore = null,
         screen = "default",
         tag = ""
       } = options;
+      clearOverlayHomeFeedback();
       applyOverlayScreen(screen);
       if (overlayTag) {
         overlayTag.textContent = tag;
@@ -3313,12 +3484,15 @@ Mode : ${difficultyLabel}`
       overlayText.textContent = text;
       actionButton.textContent = buttonLabel;
       overlay.classList.toggle("overlay--record", celebrateRecord);
+      setOverlayRecordScore(highlightScore);
       overlay.setAttribute("aria-busy", "false");
       overlay.classList.add("visible");
     }
     function hideOverlay() {
+      clearOverlayHomeFeedback();
       applyOverlayScreen("default");
       overlay.classList.remove("overlay--record");
+      setOverlayRecordScore(null);
       overlay.setAttribute("aria-busy", "false");
       overlay.classList.remove("visible");
     }
@@ -3404,11 +3578,25 @@ Mode : ${difficultyLabel}`
         button.dataset[selectedDatasetKey] = option.id;
         button.setAttribute("role", "radio");
         button.setAttribute("aria-checked", String(option.id === currentId));
+        let handledByPointer = false;
         button.innerHTML = `
         <span class="difficulty-option__label">${option.label}</span>
         <span class="difficulty-option__description">${option.description}</span>
       `;
-        button.addEventListener("click", () => onChange(option.id));
+        button.addEventListener("pointerdown", (event) => {
+          if (event.cancelable) {
+            event.preventDefault();
+          }
+          handledByPointer = true;
+          onChange(option.id);
+        });
+        button.addEventListener("click", () => {
+          if (handledByPointer) {
+            handledByPointer = false;
+            return;
+          }
+          onChange(option.id);
+        });
         container.appendChild(button);
       });
     }
@@ -3442,12 +3630,7 @@ Mode : ${difficultyLabel}`
     function setSettingsButtonActive(active) {
       settingsButton.classList.toggle("is-active", active);
     }
-    function announceScoresReset(bestScore) {
-      overlayText.textContent = `Le score et les records ont ete remis a zero.
-Record actuel : ${bestScore}`;
-    }
     return {
-      announceScoresReset,
       breakHeart,
       clearHeartBreakTimers,
       hideOverlay,
@@ -3480,7 +3663,6 @@ Record actuel : ${bestScore}`;
       loadingProgress,
       loadingProgressText,
       actionButton,
-      resetScoresButton,
       recordValue,
       scoreValue,
       coinValue,
@@ -3498,7 +3680,6 @@ Record actuel : ${bestScore}`;
       loadingProgress,
       loadingProgressText,
       actionButton,
-      resetScoresButton,
       recordValue,
       scoreValue,
       coinValue,
@@ -3511,23 +3692,8 @@ Record actuel : ${bestScore}`;
     function setActionButtonDisabled(disabled) {
       actionButton.disabled = disabled;
     }
-    function setResetScoresButtonDisabled(disabled) {
-      if (resetScoresButton) {
-        resetScoresButton.disabled = disabled;
-      }
-    }
     function setSettingsButtonDisabled(disabled) {
       settingsButton.disabled = disabled;
-    }
-    function bindResetScores(onResetScoresClick) {
-      if (!resetScoresButton) {
-        return () => {
-        };
-      }
-      resetScoresButton.addEventListener("click", onResetScoresClick);
-      return () => {
-        resetScoresButton.removeEventListener("click", onResetScoresClick);
-      };
     }
     function bindSettingsButton(onSettingsClick) {
       settingsButton.addEventListener("click", onSettingsClick);
@@ -3549,12 +3715,10 @@ Record actuel : ${bestScore}`;
     return {
       ...ui,
       bindControls,
-      bindResetScores,
       bindSettingsButton,
       bindViewportResize: browser2.bindResize,
       getInputMode: browser2.getInputMode,
       setActionButtonDisabled,
-      setResetScoresButtonDisabled,
       setSettingsButtonDisabled
     };
   }
@@ -3570,7 +3734,6 @@ Record actuel : ${bestScore}`;
     loadingProgress: browser.documentRef.getElementById("loadingProgress"),
     loadingProgressText: browser.documentRef.getElementById("loadingProgressText"),
     actionButton: browser.documentRef.getElementById("actionButton"),
-    resetScoresButton: browser.documentRef.getElementById("resetScoresButton"),
     recordValue: browser.documentRef.getElementById("recordValue"),
     scoreValue: browser.documentRef.getElementById("scoreValue"),
     coinValue: browser.documentRef.getElementById("coinValue"),

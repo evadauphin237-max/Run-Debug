@@ -145,6 +145,8 @@ export function createPlayerRenderer(ctx) {
   const sequenceBoundsCache = new Map();
   const videoFrameCanvas = createCanvas(1, 1);
   const videoFrameCtx = videoFrameCanvas.getContext("2d", { willReadFrequently: true });
+  let warmAssetsPromise = null;
+  let areAssetsWarmed = false;
 
   function getStaticSourceCanvas(assetKey, sourceImage, clip, matte) {
     const clipKey = clip
@@ -341,6 +343,126 @@ export function createPlayerRenderer(ctx) {
     }
   }
 
+  function getPlayerVisualDescriptors() {
+    return Object.entries(playerVisualAssets).map(([sequenceKey, settings]) => ({
+      sequenceKey,
+      frameAssets: settings.frameAssets,
+      matte: settings.matte,
+      preserveFrameBounds: settings.preserveFrameBounds ?? false,
+    }));
+  }
+
+  function scheduleNextBatch(callback) {
+    globalThis.setTimeout(callback, 0);
+  }
+
+  function warmAssets({ onProgress, batchSize = 6 } = {}) {
+    if (areAssetsWarmed) {
+      onProgress?.({
+        loaded: 1,
+        total: 1,
+        progress: 1,
+        label: "Preparation des animations terminee",
+      });
+      return Promise.resolve();
+    }
+
+    if (warmAssetsPromise) {
+      return warmAssetsPromise;
+    }
+
+    const tasks = [];
+
+    for (const descriptor of getPlayerVisualDescriptors()) {
+      if (descriptor.preserveFrameBounds) {
+        tasks.push({
+          type: "sequence-bounds",
+          ...descriptor,
+        });
+      }
+
+      for (const frameAsset of descriptor.frameAssets) {
+        tasks.push({
+          type: "frame",
+          ...descriptor,
+          frameAsset,
+        });
+      }
+    }
+
+    const total = tasks.length;
+    let completed = 0;
+
+    onProgress?.({
+      loaded: completed,
+      total,
+      progress: total > 0 ? 0 : 1,
+      label: "Preparation des animations 0/" + total,
+    });
+
+    warmAssetsPromise = new Promise((resolve, reject) => {
+      const runBatch = () => {
+        try {
+          for (let index = 0; index < batchSize && completed < total; index += 1) {
+            const task = tasks[completed];
+
+            if (task.type === "sequence-bounds") {
+              getSequenceBounds(task.sequenceKey, task.frameAssets, task.matte);
+            } else {
+              if (!task.frameAsset.image || !isImageReady(task.frameAsset.image)) {
+                throw new Error(`Player frame not ready during warm-up: ${task.sequenceKey}`);
+              }
+
+              const sequenceBounds = task.preserveFrameBounds
+                ? getSequenceBounds(task.sequenceKey, task.frameAssets, task.matte)
+                : null;
+              const assetKey = task.frameAsset.image.currentSrc || task.frameAsset.image.src || task.sequenceKey;
+
+              getStaticProcessedClip(
+                assetKey,
+                task.frameAsset.image,
+                null,
+                task.matte,
+                task.preserveFrameBounds,
+                sequenceBounds
+              );
+            }
+
+            completed += 1;
+          }
+
+          onProgress?.({
+            loaded: completed,
+            total,
+            progress: total > 0 ? completed / total : 1,
+            label: `Preparation des animations ${completed}/${total}`,
+          });
+
+          if (completed < total) {
+            scheduleNextBatch(runBatch);
+            return;
+          }
+
+          areAssetsWarmed = true;
+          resolve();
+        } catch (error) {
+          warmAssetsPromise = null;
+          reject(error);
+        }
+      };
+
+      if (total === 0) {
+        areAssetsWarmed = true;
+        resolve();
+        return;
+      }
+
+      runBatch();
+    });
+
+    return warmAssetsPromise;
+  }
+
   function draw(state, player, runtime) {
     const visualState = resolvePlayerVisualState(state, player, runtime);
     const animation = createPlayerAnimationFromVisualState(visualState, state, player, runtime);
@@ -396,8 +518,10 @@ export function createPlayerRenderer(ctx) {
     const maxWidth = animation.width ?? sourceWidth;
     const maxHeight = animation.height ?? sourceHeight;
     const baseScale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight);
-    const drawWidth = sourceWidth * baseScale;
-    const drawHeight = sourceHeight * baseScale;
+    const visualScale = animation.visualScale ?? 1;
+    const finalScale = baseScale * visualScale;
+    const drawWidth = sourceWidth * finalScale;
+    const drawHeight = sourceHeight * finalScale;
     const drawX = footX - (drawWidth * 0.5) + strideShift;
     const drawY = footY - drawHeight + animation.offsetY + bodyLift;
 
@@ -412,5 +536,6 @@ export function createPlayerRenderer(ctx) {
 
   return {
     draw,
+    warmAssets,
   };
 }

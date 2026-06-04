@@ -7,6 +7,7 @@ import {
   createCoinHitbox,
   createHeartHitbox,
   createPlayerHitbox,
+  getIntroThenLoopTailFrameIndex,
   getWinFrameIndex,
   getObstacleHitbox,
   rectsIntersect,
@@ -107,4 +108,14 @@ test("win animation plays once then loops on the last four frames", () => {
   assert.equal(getWinFrameIndex(0.99, 8, 10, 4, 5), 6);
   assert.equal(getWinFrameIndex(1.01, 8, 10, 4, 5), 7);
   assert.equal(getWinFrameIndex(1.21, 8, 10, 4, 5), 4);
+});
+
+test("tail-loop helper plays an intro then loops on the configured last frames", () => {
+  assert.equal(getIntroThenLoopTailFrameIndex(0, 10, 10, 3, 5), 0);
+  assert.equal(getIntroThenLoopTailFrameIndex(0.69, 10, 10, 3, 5), 6);
+  assert.equal(getIntroThenLoopTailFrameIndex(0.7, 10, 10, 3, 5), 7);
+  assert.equal(getIntroThenLoopTailFrameIndex(0.89, 10, 10, 3, 5), 7);
+  assert.equal(getIntroThenLoopTailFrameIndex(0.91, 10, 10, 3, 5), 8);
+  assert.equal(getIntroThenLoopTailFrameIndex(1.11, 10, 10, 3, 5), 9);
+  assert.equal(getIntroThenLoopTailFrameIndex(1.31, 10, 10, 3, 5), 7);
 });

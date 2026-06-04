@@ -1,6 +1,7 @@
 import {
   getChuteFrameIndex,
   getDoubleJumpFrameIndex,
+  getIntroThenLoopTailFrameIndex,
   getJumpFrameIndex,
   getWinFrameIndex,
 } from "./logic.js";
@@ -8,10 +9,10 @@ import {
 const PLAYER_VISUAL_HEIGHT = 206;
 const PLAYER_LAYOUTS = {
   homeIdle: {
-    width: 330,
-    height: 400,
-    offsetY: -54,
-    groundOffsetY: 58,
+    width: 186,
+    height: 220,
+    offsetY: -14,
+    groundOffsetY: 10,
   },
   idle: {
     width: 186,
@@ -50,10 +51,10 @@ const PLAYER_LAYOUTS = {
     groundOffsetY: 12,
   },
   gameOver: {
-    width: 194,
-    height: 206,
-    offsetY: -2,
-    groundOffsetY: 12,
+    width: 212,
+    height: 226,
+    offsetY: -14,
+    groundOffsetY: 10,
   },
   win: {
     width: 186,
@@ -63,24 +64,32 @@ const PLAYER_LAYOUTS = {
   },
 };
 const HIT_ANIMATION_FRAMES_PER_SECOND = 8;
-const GAME_OVER_ANIMATION_FRAMES_PER_SECOND = 12;
+const GAME_OVER_ANIMATION_INTRO_FRAMES_PER_SECOND = 12;
+const GAME_OVER_ANIMATION_LOOP_FRAMES_PER_SECOND = 12;
+const GAME_OVER_ANIMATION_LOOP_TAIL_COUNT = 7;
+const GAME_OVER_FRAME_SCALE_OVERRIDES = {
+  14: 1.13,
+  15: 1.13,
+  16: 1.18,
+  17: 1.22,
+  18: 1.18,
+};
 const WIN_ANIMATION_INTRO_FRAMES_PER_SECOND = 6.2;
 const WIN_ANIMATION_LOOP_FRAMES_PER_SECOND = 5.4;
 const WIN_ANIMATION_LOOP_TAIL_COUNT = 4;
 const HOME_IDLE_ANIMATION_FRAMES_PER_SECOND = 5;
 const IDLE_ANIMATION_FRAMES_PER_SECOND = 4;
 const PLAYER_FRAME_COUNTS = {
-  idleIntro: 71,
+  idleIntro: 57,
   run: 15,
   jump: 8,
   doubleJump: 6,
   chute: 5,
   idle: 26,
   hit: 4,
-  gameOver: 20,
+  gameOver: 47,
   win: 83,
 };
-const GAME_OVER_ANIMATION_DURATION = PLAYER_FRAME_COUNTS.gameOver / GAME_OVER_ANIMATION_FRAMES_PER_SECOND;
 
 function getLoopingFrameIndex(animationTime, frameCount, framesPerSecond) {
   if (frameCount <= 0 || framesPerSecond <= 0) {
@@ -92,7 +101,6 @@ function getLoopingFrameIndex(animationTime, frameCount, framesPerSecond) {
 
 export const PLAYER_VISUAL_STATES = {
   IDLE: "idle",
-  POST_GAME_IDLE: "post-game-idle",
   RUNNING: "running",
   JUMPING: "jumping",
   DOUBLE_JUMPING: "double-jumping",
@@ -104,10 +112,6 @@ export const PLAYER_VISUAL_STATES = {
 
 export function resolvePlayerVisualState(state, player, runtime) {
   if (state.gameOver) {
-    if (!runtime.didBeatRecordOnDeath && state.gameOverAnimationTime >= GAME_OVER_ANIMATION_DURATION) {
-      return PLAYER_VISUAL_STATES.POST_GAME_IDLE;
-    }
-
     return runtime.didBeatRecordOnDeath
       ? PLAYER_VISUAL_STATES.VICTORY
       : PLAYER_VISUAL_STATES.GAME_OVER;
@@ -158,15 +162,18 @@ export function createPlayerAnimationFromVisualState(visualState, state, player,
       };
 
     case PLAYER_VISUAL_STATES.GAME_OVER: {
-      const gameOverFrameStep = Math.floor(state.gameOverAnimationTime * GAME_OVER_ANIMATION_FRAMES_PER_SECOND);
-      const frameCount = PLAYER_FRAME_COUNTS.gameOver;
+      const frameIndex = getIntroThenLoopTailFrameIndex(
+        state.gameOverAnimationTime,
+        PLAYER_FRAME_COUNTS.gameOver,
+        GAME_OVER_ANIMATION_INTRO_FRAMES_PER_SECOND,
+        GAME_OVER_ANIMATION_LOOP_TAIL_COUNT,
+        GAME_OVER_ANIMATION_LOOP_FRAMES_PER_SECOND
+      );
 
       return {
         visualState,
         sheet: "gameOver",
-        frameIndex: gameOverFrameStep < frameCount
-          ? gameOverFrameStep % frameCount
-          : frameCount - 1,
+        frameIndex,
         ...PLAYER_LAYOUTS.gameOver,
         allowSwing: false,
         swingAmplitude: 0,
@@ -175,6 +182,7 @@ export function createPlayerAnimationFromVisualState(visualState, state, player,
         bobAmplitude: 0,
         strideAmplitude: 0,
         motionPhase: state.headSwingTime * 1.4,
+        visualScale: GAME_OVER_FRAME_SCALE_OVERRIDES[frameIndex] ?? 1,
       };
     }
 
@@ -264,7 +272,6 @@ export function createPlayerAnimationFromVisualState(visualState, state, player,
       };
     }
 
-    case PLAYER_VISUAL_STATES.POST_GAME_IDLE:
     case PLAYER_VISUAL_STATES.IDLE:
     default: {
       if (visualState === PLAYER_VISUAL_STATES.IDLE) {
@@ -287,14 +294,11 @@ export function createPlayerAnimationFromVisualState(visualState, state, player,
         };
       }
 
-      const idleLoopTime = state.gameOverAnimationTime
-        - GAME_OVER_ANIMATION_DURATION;
-
       return {
         visualState,
         sheet: "idle",
         frameIndex: getLoopingFrameIndex(
-          idleLoopTime,
+          state.headSwingTime,
           PLAYER_FRAME_COUNTS.idle,
           IDLE_ANIMATION_FRAMES_PER_SECOND
         ),

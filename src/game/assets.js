@@ -114,11 +114,11 @@ const heartFillActiveAsset = createLazyImageAsset(new URL("../../assets/heart-fi
 const heartLifeLostAsset = createLazyImageAsset(new URL("../../assets/heart-life-lost.svg", import.meta.url).href);
 const bonusHeartAsset = createLazyImageAsset(new URL("../../assets/coeur.svg", import.meta.url).href);
 const coinAsset = createLazyImageAsset(new URL("../../assets/dollar.png", import.meta.url).href);
-const playerIdleIntroFrameAssets = Array.from({ length: 71 }, (_, index) => (
-  createLazyImageAsset(new URL(`../../assets/personnage/idle/papillon/${index + 1}.svg`, import.meta.url).href)
+const playerIdleIntroFrameAssets = Array.from({ length: 57 }, (_, index) => (
+  createLazyImageAsset(new URL(`../../assets/personnage/idle/idle/${index + 1}.svg`, import.meta.url).href)
 ));
 const playerIdleFrameAssets = Array.from({ length: 26 }, (_, index) => (
-  createLazyImageAsset(new URL(`../../assets/personnage/idle/${index + 1}.svg`, import.meta.url).href)
+  createLazyImageAsset(new URL(`../../assets/personnage/idle/idel 2/${index + 1}.svg`, import.meta.url).href)
 ));
 const playerRunFrameAssets = Array.from({ length: 15 }, (_, index) => (
   createLazyImageAsset(new URL(`../../assets/personnage/court/${index + 1}.svg`, import.meta.url).href)
@@ -132,7 +132,7 @@ const playerDoubleJumpFrameAssets = Array.from({ length: 6 }, (_, index) => (
 const playerHitFrameAssets = Array.from({ length: 4 }, (_, index) => (
   createLazyImageAsset(new URL(`../../assets/personnage/hit/${index + 1}.svg`, import.meta.url).href)
 ));
-const playerGameOverFrameAssets = Array.from({ length: 20 }, (_, index) => (
+const playerGameOverFrameAssets = Array.from({ length: 47 }, (_, index) => (
   createLazyImageAsset(new URL(`../../assets/personnage/game over/${index + 1}.svg`, import.meta.url).href)
 ));
 const playerWinFrameAssets = Array.from({ length: 83 }, (_, index) => (

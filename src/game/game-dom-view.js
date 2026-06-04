@@ -12,7 +12,6 @@ export function createGameDOMView(elements, browser) {
     loadingProgress,
     loadingProgressText,
     actionButton,
-    resetScoresButton,
     recordValue,
     scoreValue,
     coinValue,
@@ -31,7 +30,6 @@ export function createGameDOMView(elements, browser) {
     loadingProgress,
     loadingProgressText,
     actionButton,
-    resetScoresButton,
     recordValue,
     scoreValue,
     coinValue,
@@ -46,26 +44,8 @@ export function createGameDOMView(elements, browser) {
     actionButton.disabled = disabled;
   }
 
-  function setResetScoresButtonDisabled(disabled) {
-    if (resetScoresButton) {
-      resetScoresButton.disabled = disabled;
-    }
-  }
-
   function setSettingsButtonDisabled(disabled) {
     settingsButton.disabled = disabled;
-  }
-
-  function bindResetScores(onResetScoresClick) {
-    if (!resetScoresButton) {
-      return () => {};
-    }
-
-    resetScoresButton.addEventListener("click", onResetScoresClick);
-
-    return () => {
-      resetScoresButton.removeEventListener("click", onResetScoresClick);
-    };
   }
 
   function bindSettingsButton(onSettingsClick) {
@@ -91,12 +71,10 @@ export function createGameDOMView(elements, browser) {
   return {
     ...ui,
     bindControls,
-    bindResetScores,
     bindSettingsButton,
     bindViewportResize: browser.bindResize,
     getInputMode: browser.getInputMode,
     setActionButtonDisabled,
-    setResetScoresButtonDisabled,
     setSettingsButtonDisabled,
   };
 }

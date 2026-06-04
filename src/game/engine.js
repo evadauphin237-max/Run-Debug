@@ -34,7 +34,6 @@ import {
   loadBestScore,
   loadPreferredDifficulty,
   loadPreferredLevel,
-  resetBestScores,
   saveBestScore,
   savePreferredDifficulty,
   savePreferredLevel,
@@ -72,7 +71,6 @@ export function createGame(elements) {
   let bugHitEffects = [];
   let clouds = [];
   let cleanupInput = null;
-  let cleanupResetScores = null;
   let cleanupSettingsButton = null;
   let cleanupViewportResize = null;
   let isSettingsOverlayOpen = false;
@@ -311,7 +309,7 @@ export function createGame(elements) {
       "Reprendre",
       {
         screen: "settings",
-        tag: "Options",
+        tag: "Paramètres",
       }
     );
     syncTouchMode();
@@ -330,14 +328,6 @@ export function createGame(elements) {
     }
   }
 
-  function resetScores() {
-    resetBestScores();
-    state.bestScore = 0;
-    updateHudDisplay();
-    initGame();
-    view.announceScoresReset(state.bestScore);
-  }
-
   function endGame() {
     isSettingsOverlayOpen = false;
     clearHeadImpactTimer();
@@ -354,6 +344,7 @@ export function createGame(elements) {
       "Essaye encore",
       {
         celebrateRecord: gameOverSnapshot.isNewRecord,
+        highlightScore: gameOverSnapshot.isNewRecord ? gameOverSnapshot.finalScore : null,
         screen: "end",
         tag: gameOverSnapshot.isNewRecord ? "Victoire" : "Game Over",
       }
@@ -510,13 +501,15 @@ export function createGame(elements) {
   }
 
   function start() {
+    const assetLoadProgressWeight = 0.78;
+    const playerWarmupProgressWeight = 1 - assetLoadProgressWeight;
+
     view.setupLivesDisplay(MAX_LIVES, state.lives);
     view.renderDifficultyOptions(DIFFICULTY_OPTIONS, difficulty.id, setDifficulty);
     view.renderLevelOptions(LEVEL_OPTIONS, level.id, setLevel);
     view.setDifficultySelection(difficulty.id);
     view.setLevelSelection(level.id);
     view.setActionButtonDisabled(true);
-    view.setResetScoresButtonDisabled(true);
     view.setSettingsButtonDisabled(true);
     syncTouchMode();
     clouds = createClouds();
@@ -561,26 +554,39 @@ export function createGame(elements) {
 
     cleanupViewportResize = view.bindViewportResize(syncTouchMode);
     cleanupSettingsButton = view.bindSettingsButton(() => {
-      openSettings();
-    });
-    cleanupResetScores = view.bindResetScores(() => {
-      if (!runtime.assetsReady) {
+      if (isSettingsOverlayOpen) {
+        closeSettings();
         return;
       }
 
-      resetScores();
+      openSettings();
     });
     preloadCoreAssets({
       onProgress: (progressState) => {
-        view.updateLoadingProgress(progressState);
+        view.updateLoadingProgress({
+          ...progressState,
+          progress: progressState.progress * assetLoadProgressWeight,
+        });
       },
     })
       .then(() => {
         runtime.assetsReady = true;
         view.setActionButtonDisabled(false);
-        view.setResetScoresButtonDisabled(false);
         view.setSettingsButtonDisabled(false);
         initGame();
+
+        // Player frame warm-up is an optimization. Do it in the background so
+        // the home screen is not blocked behind expensive animation prep.
+        renderer.warmAssets({
+          onProgress: (progressState) => {
+            view.updateLoadingProgress({
+              ...progressState,
+              progress: assetLoadProgressWeight + (progressState.progress * playerWarmupProgressWeight),
+            });
+          },
+        }).catch((error) => {
+          console.error(error);
+        });
       })
       .catch((error) => {
         console.error(error);
@@ -593,7 +599,6 @@ export function createGame(elements) {
 
   function destroy() {
     cleanupInput?.();
-    cleanupResetScores?.();
     cleanupSettingsButton?.();
     cleanupViewportResize?.();
     clearHeadImpactTimer();

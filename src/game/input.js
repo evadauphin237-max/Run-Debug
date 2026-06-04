@@ -9,6 +9,8 @@ export function bindInput({
   onActionButtonClick,
   canTriggerPrimaryAction,
 }) {
+  let suppressNextActionButtonClick = false;
+
   function handlePrimaryAction(event) {
     if (event.type === "keydown" && event.code !== "Space") {
       return;
@@ -25,13 +27,33 @@ export function bindInput({
     onPrimaryAction(event);
   }
 
-  actionButton.addEventListener("click", onActionButtonClick);
+  function handleActionButtonPointerDown(event) {
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+
+    suppressNextActionButtonClick = true;
+    onActionButtonClick(event);
+  }
+
+  function handleActionButtonClick(event) {
+    if (suppressNextActionButtonClick) {
+      suppressNextActionButtonClick = false;
+      return;
+    }
+
+    onActionButtonClick(event);
+  }
+
+  actionButton.addEventListener("pointerdown", handleActionButtonPointerDown);
+  actionButton.addEventListener("click", handleActionButtonClick);
   documentRef.addEventListener("keydown", handlePrimaryAction);
   canvas.addEventListener("pointerdown", handlePrimaryAction);
   touchJumpButton.addEventListener("pointerdown", handlePrimaryAction);
 
   return () => {
-    actionButton.removeEventListener("click", onActionButtonClick);
+    actionButton.removeEventListener("pointerdown", handleActionButtonPointerDown);
+    actionButton.removeEventListener("click", handleActionButtonClick);
     documentRef.removeEventListener("keydown", handlePrimaryAction);
     canvas.removeEventListener("pointerdown", handlePrimaryAction);
     touchJumpButton.removeEventListener("pointerdown", handlePrimaryAction);

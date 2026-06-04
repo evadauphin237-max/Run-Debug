@@ -14,7 +14,6 @@ const view = createGameDOMView({
   loadingProgress: browser.documentRef.getElementById("loadingProgress"),
   loadingProgressText: browser.documentRef.getElementById("loadingProgressText"),
   actionButton: browser.documentRef.getElementById("actionButton"),
-  resetScoresButton: browser.documentRef.getElementById("resetScoresButton"),
   recordValue: browser.documentRef.getElementById("recordValue"),
   scoreValue: browser.documentRef.getElementById("scoreValue"),
   coinValue: browser.documentRef.getElementById("coinValue"),
