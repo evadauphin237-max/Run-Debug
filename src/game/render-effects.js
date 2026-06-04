@@ -2,6 +2,8 @@ import { bonusHeartSprite, bugVisualSettings, coinSprite, isImageReady } from ".
 import { clamp } from "./logic.js";
 
 export function createEffectsRenderer(ctx) {
+  const canvasWidth = ctx.canvas.width;
+
   function drawObstacleFallback(width, height) {
     ctx.fillStyle = "rgba(22, 50, 79, 0.9)";
     ctx.beginPath();
@@ -44,8 +46,14 @@ export function createEffectsRenderer(ctx) {
   }
 
   function drawBugHitEffects(bugHitEffects) {
-    bugHitEffects.forEach((effect) => {
+    for (let index = 0; index < bugHitEffects.length; index += 1) {
+      const effect = bugHitEffects[index];
       const alpha = clamp(effect.timeLeft / 0.42, 0, 1);
+
+      if (alpha <= 0 || effect.x + effect.width <= 0 || effect.x >= canvasWidth) {
+        continue;
+      }
+
       const settings = bugVisualSettings[effect.kind];
       const hitFrame = settings.hitFrame;
       const sourceImage = settings.image;
@@ -78,11 +86,17 @@ export function createEffectsRenderer(ctx) {
       }
 
       ctx.restore();
-    });
+    }
   }
 
   function drawBonusHearts(bonusHearts) {
-    bonusHearts.forEach((heart) => {
+    for (let index = 0; index < bonusHearts.length; index += 1) {
+      const heart = bonusHearts[index];
+
+      if (heart.x + heart.width <= 0 || heart.x >= canvasWidth) {
+        continue;
+      }
+
       const floatOffset = Math.sin(heart.floatTime) * 8;
       const pulseScale = 1 + Math.sin(heart.floatTime * 2.4) * 0.1;
       const pulseWidth = heart.width * pulseScale;
@@ -108,11 +122,17 @@ export function createEffectsRenderer(ctx) {
       }
 
       ctx.restore();
-    });
+    }
   }
 
   function drawCoins(coins) {
-    coins.forEach((coin) => {
+    for (let index = 0; index < coins.length; index += 1) {
+      const coin = coins[index];
+
+      if (coin.x + coin.width <= 0 || coin.x >= canvasWidth) {
+        continue;
+      }
+
       const floatOffset = Math.sin(coin.floatTime) * 8;
       const pulseScale = 1 + Math.sin(coin.floatTime * 2) * 0.06;
       const rotation = Math.sin(coin.spinTime) * 0.16;
@@ -140,7 +160,7 @@ export function createEffectsRenderer(ctx) {
       }
 
       ctx.restore();
-    });
+    }
   }
 
   function draw({ coins, bonusHearts, bugHitEffects }) {

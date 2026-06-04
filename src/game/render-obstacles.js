@@ -3,13 +3,23 @@ import { obstaclePalette } from "./config.js";
 import { isAnimatedBugKind } from "./logic.js";
 
 export function createObstacleRenderer(ctx) {
+  const gradientCache = new Map();
+
   function createObstacleFill(obstacle) {
     const palette = obstacle.palette ?? obstaclePalette[0];
 
     if (palette.kind === "gradient") {
+      const gradientKey = `${palette.start}:${palette.end}:${obstacle.width}:${obstacle.height}`;
+      const cachedGradient = gradientCache.get(gradientKey);
+
+      if (cachedGradient) {
+        return cachedGradient;
+      }
+
       const gradient = ctx.createLinearGradient(0, 0, obstacle.width, obstacle.height);
       gradient.addColorStop(0, palette.start);
       gradient.addColorStop(1, palette.end);
+      gradientCache.set(gradientKey, gradient);
       return gradient;
     }
 
@@ -121,15 +131,23 @@ export function createObstacleRenderer(ctx) {
   }
 
   function draw(obstacles, state) {
-    obstacles.forEach((obstacle) => {
+    const canvasWidth = ctx.canvas.width;
+
+    for (let index = 0; index < obstacles.length; index += 1) {
+      const obstacle = obstacles[index];
+
+      if (obstacle.x + obstacle.width <= 0 || obstacle.x >= canvasWidth) {
+        continue;
+      }
+
       if (obstacle.kind === "animated-ball") {
         drawAnimatedBallObstacle(obstacle, state);
-        return;
+        continue;
       }
 
       if (isAnimatedBugKind(obstacle.kind)) {
         drawAnimatedBugObstacle(obstacle);
-        return;
+        continue;
       }
 
       ctx.save();
@@ -139,7 +157,7 @@ export function createObstacleRenderer(ctx) {
       ctx.shadowOffsetY = 6;
       drawObstacleFallback(obstacle.width, obstacle.height, obstacle);
       ctx.restore();
-    });
+    }
   }
 
   return {

@@ -11,6 +11,8 @@ const view = createGameDOMView({
   overlayTag: browser.documentRef.getElementById("overlayTag"),
   overlayTitle: browser.documentRef.getElementById("overlayTitle"),
   overlayText: browser.documentRef.getElementById("overlayText"),
+  loadingProgress: browser.documentRef.getElementById("loadingProgress"),
+  loadingProgressText: browser.documentRef.getElementById("loadingProgressText"),
   actionButton: browser.documentRef.getElementById("actionButton"),
   resetScoresButton: browser.documentRef.getElementById("resetScoresButton"),
   recordValue: browser.documentRef.getElementById("recordValue"),

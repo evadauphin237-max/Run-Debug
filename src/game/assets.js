@@ -108,8 +108,15 @@ const atlasAssets = Object.fromEntries(
   ])
 );
 
+const settingsIconAsset = createLazyImageAsset(new URL("../../assets/settings.svg", import.meta.url).href);
+const heartLifeActiveAsset = createLazyImageAsset(new URL("../../assets/heart-life-active.svg", import.meta.url).href);
+const heartFillActiveAsset = createLazyImageAsset(new URL("../../assets/heart-fill-active.svg", import.meta.url).href);
+const heartLifeLostAsset = createLazyImageAsset(new URL("../../assets/heart-life-lost.svg", import.meta.url).href);
 const bonusHeartAsset = createLazyImageAsset(new URL("../../assets/coeur.svg", import.meta.url).href);
 const coinAsset = createLazyImageAsset(new URL("../../assets/dollar.png", import.meta.url).href);
+const playerIdleIntroFrameAssets = Array.from({ length: 71 }, (_, index) => (
+  createLazyImageAsset(new URL(`../../assets/personnage/idle/papillon/${index + 1}.svg`, import.meta.url).href)
+));
 const playerIdleFrameAssets = Array.from({ length: 26 }, (_, index) => (
   createLazyImageAsset(new URL(`../../assets/personnage/idle/${index + 1}.svg`, import.meta.url).href)
 ));
@@ -128,8 +135,8 @@ const playerHitFrameAssets = Array.from({ length: 4 }, (_, index) => (
 const playerGameOverFrameAssets = Array.from({ length: 20 }, (_, index) => (
   createLazyImageAsset(new URL(`../../assets/personnage/game over/${index + 1}.svg`, import.meta.url).href)
 ));
-const playerWinFrameAssets = Array.from({ length: 9 }, (_, index) => (
-  createLazyImageAsset(new URL(`../../assets/personnage/win/${index + 1}.svg`, import.meta.url).href)
+const playerWinFrameAssets = Array.from({ length: 83 }, (_, index) => (
+  createLazyImageAsset(new URL(`../../assets/personnage/win/Win2/${index + 1}.svg`, import.meta.url).href)
 ));
 const cloudAssets = [
   createLazyImageAsset(new URL("../../assets/decor/nuage1.svg", import.meta.url).href),
@@ -171,11 +178,6 @@ const decorAssets = {
     midgroundSequence: valleyMidgroundSequenceAssets,
     foreground: forestForegroundAsset,
   },
-  storybook: {
-    background: null,
-    midground: null,
-    foreground: createLazyImageAsset(new URL("../../assets/decor/valee/Design sans titre.svg", import.meta.url).href),
-  },
 };
 
 function createBugAtlasView(familyName) {
@@ -197,11 +199,7 @@ function createBugAtlasView(familyName) {
   };
 }
 
-function loadAtlasFamily(familyName) {
-  return atlasAssets[familyName].imageAsset.load();
-}
-
-export function preloadCoreAssets() {
+function collectCoreAssets() {
   const levelDecorAssets = Object.values(decorAssets).flatMap((theme) => [
     theme.background,
     theme.thirdground,
@@ -211,20 +209,49 @@ export function preloadCoreAssets() {
     theme.sun,
   ].filter(Boolean));
 
-  return Promise.all([
-    ...CORE_ATLAS_FAMILIES.map(loadAtlasFamily),
-    bonusHeartAsset.load(),
-    coinAsset.load(),
-    ...playerIdleFrameAssets.map((asset) => asset.load()),
-    ...playerRunFrameAssets.map((asset) => asset.load()),
-    ...playerJumpFrameAssets.map((asset) => asset.load()),
-    ...playerDoubleJumpFrameAssets.map((asset) => asset.load()),
-    ...playerHitFrameAssets.map((asset) => asset.load()),
-    ...playerGameOverFrameAssets.map((asset) => asset.load()),
-    ...playerWinFrameAssets.map((asset) => asset.load()),
-    ...levelDecorAssets.map((asset) => asset.load()),
-    ...cloudAssets.map((asset) => asset.load()),
-  ]);
+  return [...new Set([
+    ...CORE_ATLAS_FAMILIES.map((familyName) => atlasAssets[familyName].imageAsset),
+    settingsIconAsset,
+    heartLifeActiveAsset,
+    heartFillActiveAsset,
+    heartLifeLostAsset,
+    bonusHeartAsset,
+    coinAsset,
+    ...playerIdleIntroFrameAssets,
+    ...playerIdleFrameAssets,
+    ...playerRunFrameAssets,
+    ...playerJumpFrameAssets,
+    ...playerDoubleJumpFrameAssets,
+    ...playerHitFrameAssets,
+    ...playerGameOverFrameAssets,
+    ...playerWinFrameAssets,
+    ...levelDecorAssets,
+    ...cloudAssets,
+  ])];
+}
+
+export function preloadCoreAssets({ onProgress } = {}) {
+  const assets = collectCoreAssets();
+  const total = assets.length;
+  let loaded = 0;
+
+  onProgress?.({
+    loaded,
+    total,
+    progress: total > 0 ? 0 : 1,
+  });
+
+  return Promise.all(assets.map((asset) => (
+    asset.load().then((resource) => {
+      loaded += 1;
+      onProgress?.({
+        loaded,
+        total,
+        progress: total > 0 ? loaded / total : 1,
+      });
+      return resource;
+    })
+  )));
 }
 
 export function warmGameplayAssets() {
@@ -290,11 +317,6 @@ export const decorSprites = {
     midgroundSequence: decorAssets.valley.midgroundSequence.map((asset) => createImageSprite(asset)),
     foreground: createImageSprite(decorAssets.valley.foreground),
   },
-  storybook: {
-    background: null,
-    midground: null,
-    foreground: createImageSprite(decorAssets.storybook.foreground),
-  },
   clouds: cloudAssets.map((asset) => createImageSprite(asset)),
 };
 
@@ -308,6 +330,11 @@ function padClip(clip, padding = 18) {
 }
 
 export const playerVisualAssets = {
+  idleIntro: {
+    frameAssets: playerIdleIntroFrameAssets,
+    matte: "white",
+    preserveFrameBounds: true,
+  },
   idle: {
     frameAssets: playerIdleFrameAssets,
     matte: "white",
@@ -342,5 +369,6 @@ export const playerVisualAssets = {
   win: {
     frameAssets: playerWinFrameAssets,
     matte: "white",
+    preserveFrameBounds: true,
   },
 };

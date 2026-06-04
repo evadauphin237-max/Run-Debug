@@ -29,7 +29,7 @@ function getLayerMetrics(world, image) {
 
 export function createBackgroundRenderer(ctx, world) {
   const layerBitmapCache = new WeakMap();
-  const croppedLayerCache = new WeakMap();
+  let skyGradient = null;
   const FOREST_CLOUD_SOURCES = [
     { x: 370, y: 42, width: 417, height: 153 },
     { x: 806, y: 177, width: 151, height: 62 },
@@ -48,14 +48,6 @@ export function createBackgroundRenderer(ctx, world) {
     width: 141,
     height: 138,
   };
-  const STORYBOOK_SOURCE = {
-    x: 4,
-    y: 472,
-    width: 1912,
-    height: 135,
-  };
-  const STORYBOOK_TARGET_HEIGHT_RATIO = (314 / 1143) * 2;
-
   function createScratchCanvas(width, height) {
     if (typeof OffscreenCanvas !== "undefined") {
       return new OffscreenCanvas(width, height);
@@ -148,98 +140,13 @@ export function createBackgroundRenderer(ctx, world) {
     };
   }
 
-  function getPreparedCroppedLayer(sprite, source, targetHeight, seamPatchWidth = 0) {
-    if (!sprite || !isImageReady(sprite.image)) {
-      return null;
-    }
-
-    const sourceWidth = Math.max(1, source.width);
-    const sourceHeight = Math.max(1, source.height);
-    const normalizedTargetHeight = Math.max(1, Math.round(targetHeight));
-    const targetWidth = Math.max(1, Math.round((sourceWidth / sourceHeight) * normalizedTargetHeight));
-    const seamWidth = seamPatchWidth > 0
-      ? Math.min(targetWidth, seamPatchWidth + LAYER_SEAM_OVERDRAW * 2)
-      : 0;
-    const cacheKey = `${source.x}:${source.y}:${sourceWidth}:${sourceHeight}:${targetWidth}:${normalizedTargetHeight}:${seamWidth}`;
-    const cachedLayer = croppedLayerCache.get(sprite.image);
-
-    if (cachedLayer?.key === cacheKey) {
-      return {
-        sourceWidth,
-        sourceHeight,
-        targetWidth,
-        targetHeight: normalizedTargetHeight,
-        y: world.height - normalizedTargetHeight,
-        canvas: cachedLayer.canvas,
-        seamWidth,
-      };
-    }
-
-    const canvas = createScratchCanvas(targetWidth + seamWidth * 2, normalizedTargetHeight);
-    const scratchCtx = canvas.getContext("2d");
-
-    scratchCtx.imageSmoothingEnabled = true;
-    scratchCtx.clearRect(0, 0, canvas.width, canvas.height);
-    scratchCtx.drawImage(
-      sprite.image,
-      source.x,
-      source.y,
-      sourceWidth,
-      sourceHeight,
-      seamWidth,
-      0,
-      targetWidth,
-      normalizedTargetHeight
-    );
-
-    if (seamWidth > 0) {
-      const sourcePatchWidth = Math.min(sourceWidth, Math.max(1, Math.round((seamWidth / targetWidth) * sourceWidth)));
-
-      scratchCtx.drawImage(
-        sprite.image,
-        source.x + sourceWidth - sourcePatchWidth,
-        source.y,
-        sourcePatchWidth,
-        sourceHeight,
-        0,
-        0,
-        seamWidth,
-        normalizedTargetHeight
-      );
-      scratchCtx.drawImage(
-        sprite.image,
-        source.x,
-        source.y,
-        sourcePatchWidth,
-        sourceHeight,
-        seamWidth + targetWidth,
-        0,
-        seamWidth,
-        normalizedTargetHeight
-      );
-    }
-
-    croppedLayerCache.set(sprite.image, {
-      key: cacheKey,
-      canvas,
-    });
-
-    return {
-      sourceWidth,
-      sourceHeight,
-      targetWidth,
-      targetHeight: normalizedTargetHeight,
-      y: world.height - normalizedTargetHeight,
-      canvas,
-      seamWidth,
-    };
-  }
-
   function drawSky() {
-    const skyGradient = ctx.createLinearGradient(0, 0, 0, world.height);
-    skyGradient.addColorStop(0, "#ffb3e6");
-    skyGradient.addColorStop(0.52, "#c9c2ff");
-    skyGradient.addColorStop(1, "#8fdcff");
+    if (!skyGradient) {
+      skyGradient = ctx.createLinearGradient(0, 0, 0, world.height);
+      skyGradient.addColorStop(0, "#ffb3e6");
+      skyGradient.addColorStop(0.52, "#c9c2ff");
+      skyGradient.addColorStop(1, "#8fdcff");
+    }
 
     ctx.fillStyle = skyGradient;
     ctx.fillRect(0, 0, world.width, world.height);
@@ -424,7 +331,8 @@ export function createBackgroundRenderer(ctx, world) {
   }
 
   function drawCloudFallbacks(clouds, state) {
-    clouds.forEach((cloud, index) => {
+    for (let index = 0; index < clouds.length; index += 1) {
+      const cloud = clouds[index];
       const cloudRadius = 62 * cloud.scale;
       const wrapWidth = world.width + 320;
       const travelDistance = (state.cloudOffset * cloud.speedFactor) % wrapWidth;
@@ -454,7 +362,7 @@ export function createBackgroundRenderer(ctx, world) {
         }
         ctx.restore();
       }
-    });
+    }
   }
 
   function drawClouds(clouds, state) {
@@ -465,10 +373,11 @@ export function createBackgroundRenderer(ctx, world) {
       return;
     }
 
-    clouds.forEach((cloud, index) => {
+    for (let index = 0; index < clouds.length; index += 1) {
+      const cloud = clouds[index];
       const cloudSprite = decorSprites.clouds[index % decorSprites.clouds.length];
       drawScrollingLayer(cloudSprite, state.cloudOffset * cloud.speedFactor);
-    });
+    }
   }
 
   function drawWrappedSkySprite(sprite, source, baseX, y, drawWidth, motionOffset, alpha = 1) {
@@ -507,7 +416,8 @@ export function createBackgroundRenderer(ctx, world) {
   }
 
   function drawForestClouds(state) {
-    FOREST_CLOUD_LAYOUTS.forEach((layout, index) => {
+    for (let index = 0; index < FOREST_CLOUD_LAYOUTS.length; index += 1) {
+      const layout = FOREST_CLOUD_LAYOUTS[index];
       const cloudSprite = decorSprites.clouds[index];
       const source = FOREST_CLOUD_SOURCES[index];
 
@@ -526,7 +436,7 @@ export function createBackgroundRenderer(ctx, world) {
         state.cloudOffset * layout.speedFactor,
         0.98
       );
-    });
+    }
   }
 
   function drawForestSun(levelDecor, state) {
@@ -673,22 +583,6 @@ export function createBackgroundRenderer(ctx, world) {
 
     if (levelId === "valley") {
       drawValleySequence(state, runtime);
-      return;
-    }
-
-    if (levelId === "storybook") {
-      drawSky();
-      drawSharedSkyDecor(state);
-      const preparedStorybookLayer = getPreparedCroppedLayer(
-        levelDecor.foreground,
-        STORYBOOK_SOURCE,
-        world.height * STORYBOOK_TARGET_HEIGHT_RATIO,
-        LAYER_SEAM_PATCH_WIDTH.foreground
-      );
-
-      if (preparedStorybookLayer) {
-        drawPreparedLayer(preparedStorybookLayer, state.groundOffset);
-      }
       return;
     }
 

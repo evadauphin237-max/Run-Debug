@@ -98,11 +98,13 @@ test("shuffleList keeps the same members", () => {
   assert.notEqual(shuffled, source);
 });
 
-test("win animation plays once then loops on the last two frames", () => {
-  assert.equal(getWinFrameIndex(0, 4), 0);
-  assert.equal(getWinFrameIndex(0.35, 4), 1);
-  assert.equal(getWinFrameIndex(0.7, 4), 2);
-  assert.equal(getWinFrameIndex(1.0, 4), 3);
-  assert.equal(getWinFrameIndex(1.3, 4), 2);
-  assert.equal(getWinFrameIndex(1.6, 4), 3);
+test("win animation plays once then loops on the last four frames", () => {
+  assert.equal(getWinFrameIndex(0, 8, 10, 4, 5), 0);
+  assert.equal(getWinFrameIndex(0.39, 8, 10, 4, 5), 3);
+  assert.equal(getWinFrameIndex(0.4, 8, 10, 4, 5), 4);
+  assert.equal(getWinFrameIndex(0.59, 8, 10, 4, 5), 4);
+  assert.equal(getWinFrameIndex(0.61, 8, 10, 4, 5), 5);
+  assert.equal(getWinFrameIndex(0.99, 8, 10, 4, 5), 6);
+  assert.equal(getWinFrameIndex(1.01, 8, 10, 4, 5), 7);
+  assert.equal(getWinFrameIndex(1.21, 8, 10, 4, 5), 4);
 });

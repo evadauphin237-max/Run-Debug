@@ -127,7 +127,7 @@ export function shouldSpawnCoin(coinTimer, nextCoinIn) {
   return coinTimer >= nextCoinIn;
 }
 
-export function getIdleFrameIndex(animationTime, frameCount = 26, framesPerSecond = 6) {
+export function getIdleFrameIndex(animationTime, frameCount = 68, framesPerSecond = 4) {
   return Math.min(frameCount - 1, Math.floor(animationTime * framesPerSecond));
 }
 
@@ -164,19 +164,39 @@ export function getChuteFrameIndex(deathFallTime, deathFallDuration, frameCount)
   return Math.min(frameCount - 1, Math.floor(progress * frameCount));
 }
 
-export function getWinFrameIndex(animationTime, frameCount, framesPerSecond = 3.2) {
-  const frameStep = Math.floor(animationTime * framesPerSecond);
-
-  if (frameStep < frameCount) {
-    return frameStep;
+export function getWinFrameIndex(
+  animationTime,
+  frameCount,
+  introFramesPerSecond = 3.2,
+  loopTailCount = 4,
+  loopFramesPerSecond = introFramesPerSecond
+) {
+  if (frameCount <= 0 || introFramesPerSecond <= 0 || loopFramesPerSecond <= 0) {
+    return 0;
   }
 
-  if (frameCount <= 2) {
-    return frameCount - 1;
+  const loopLength = Math.max(1, Math.min(loopTailCount, frameCount));
+  const introLength = Math.max(0, frameCount - loopLength);
+
+  if (introLength === 0) {
+    return Math.floor(animationTime * loopFramesPerSecond) % frameCount;
   }
 
-  const loopStart = frameCount - 2;
-  return loopStart + ((frameStep - frameCount) % 2);
+  const introDuration = introLength / introFramesPerSecond;
+
+  if (animationTime < introDuration) {
+    return Math.min(introLength - 1, Math.floor(animationTime * introFramesPerSecond));
+  }
+
+  const loopStart = frameCount - loopLength;
+  const loopTime = animationTime - introDuration;
+  const loopStep = Math.floor(loopTime * loopFramesPerSecond);
+
+  if (loopStep < loopLength) {
+    return loopStart + loopStep;
+  }
+
+  return loopStart + ((loopStep - loopLength) % loopLength);
 }
 
 export function createClouds() {

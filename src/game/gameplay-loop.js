@@ -1,7 +1,8 @@
 import { clamp, computeNextCoinDelay, computeNextObstacleDelay, shouldSpawnCoin } from "./logic.js";
 
-const IMPACT_SLOWDOWN_DURATION = 5;
+const IMPACT_SLOWDOWN_DURATION = 1.5;
 const IMPACT_MIN_TRAVEL_MULTIPLIER = 0.42;
+const IMPACT_OBSTACLE_SPAWN_PAUSE_DURATION = 1.5;
 
 // Pure frame-update helpers extracted from the engine.
 // The engine orchestrates them, while tests can validate the math in isolation.
@@ -78,6 +79,18 @@ export function getEffectiveTravelSpeed(state, cooldownDuration = IMPACT_SLOWDOW
   return state.speed * getImpactTravelMultiplier(state.hitCooldown, cooldownDuration);
 }
 
+export function isObstacleSpawnPausedAfterHit(
+  hitCooldown,
+  cooldownDuration = IMPACT_SLOWDOWN_DURATION,
+  pauseDuration = IMPACT_OBSTACLE_SPAWN_PAUSE_DURATION
+) {
+  if (hitCooldown <= 0 || cooldownDuration <= 0 || pauseDuration <= 0) {
+    return false;
+  }
+
+  return hitCooldown > Math.max(0, cooldownDuration - pauseDuration);
+}
+
 export function computeNextRunCycle(runCycle, speed, deltaTime) {
   return runCycle + deltaTime * Math.max(13.5, speed * 0.044);
 }
@@ -87,6 +100,7 @@ export function shouldSpawnObstacleNow(state, runtime) {
     !state.pendingGameOver &&
     !state.pendingVictory &&
     !runtime.isPlayerHeadInImpactState &&
+    !isObstacleSpawnPausedAfterHit(state.hitCooldown ?? 0) &&
     state.obstacleTimer >= state.nextObstacleIn
   );
 }

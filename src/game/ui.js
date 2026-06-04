@@ -5,6 +5,8 @@ export function createUI({
   overlayTag,
   overlayTitle,
   overlayText,
+  loadingProgress,
+  loadingProgressText,
   actionButton,
   resetScoresButton,
   recordValue,
@@ -17,6 +19,13 @@ export function createUI({
   touchJumpButton,
 }, browser) {
   const heartBreakTimers = new Map();
+  const renderCache = {
+    bestScoreText: null,
+    coinText: null,
+    loadingLabel: null,
+    loadingPercent: null,
+    scoreText: null,
+  };
   const HOME_LOGO_MARKUP = `
     <span class="overlay-logo-word" aria-hidden="true">
       <span class="overlay-logo-letter overlay-logo-letter--r">R</span>
@@ -70,6 +79,7 @@ export function createUI({
     const activeScreen = screen ?? "default";
     overlay.dataset.screen = activeScreen;
     overlay.classList.toggle("overlay--home", activeScreen === "home");
+    overlay.classList.toggle("overlay--loading-screen", activeScreen === "loading");
     overlay.classList.toggle("overlay--settings-screen", activeScreen === "settings");
     overlay.classList.toggle("overlay--end-screen", activeScreen === "end");
     overlay.classList.toggle("overlay--error-screen", activeScreen === "error");
@@ -109,6 +119,45 @@ export function createUI({
     overlayTitle.textContent = title;
   }
 
+  function updateLoadingProgress({ loaded = 0, total = 0, progress = 0 } = {}) {
+    if (!loadingProgress || !loadingProgressText) {
+      return;
+    }
+
+    const safeProgress = Number.isFinite(progress)
+      ? Math.max(0, Math.min(progress, 1))
+      : 0;
+    const roundedPercent = Math.round(safeProgress * 100);
+    const loadingLabel = total > 0
+      ? `Chargement des assets ${loaded}/${total} (${roundedPercent}%)`
+      : `Chargement des assets (${roundedPercent}%)`;
+
+    if (renderCache.loadingPercent !== roundedPercent) {
+      loadingProgress.style.width = `${roundedPercent}%`;
+      loadingProgress.setAttribute("aria-valuenow", String(roundedPercent));
+      renderCache.loadingPercent = roundedPercent;
+    }
+
+    if (renderCache.loadingLabel !== loadingLabel) {
+      loadingProgressText.textContent = loadingLabel;
+      renderCache.loadingLabel = loadingLabel;
+    }
+  }
+
+  function showLoadingOverlay(progressState) {
+    applyOverlayScreen("loading");
+    if (overlayTag) {
+      overlayTag.textContent = "Initialisation";
+    }
+    renderOverlayTitle("Chargement du jeu", "loading");
+    overlayText.textContent = "Preparation des sprites et de l'interface pour un demarrage fluide.";
+    actionButton.textContent = "";
+    overlay.classList.remove("overlay--record");
+    overlay.setAttribute("aria-busy", "true");
+    overlay.classList.add("visible");
+    updateLoadingProgress(progressState);
+  }
+
   function showOverlay(title, text, buttonLabel, options = {}) {
     const {
       celebrateRecord = false,
@@ -124,23 +173,40 @@ export function createUI({
     overlayText.textContent = text;
     actionButton.textContent = buttonLabel;
     overlay.classList.toggle("overlay--record", celebrateRecord);
+    overlay.setAttribute("aria-busy", "false");
     overlay.classList.add("visible");
   }
 
   function hideOverlay() {
     applyOverlayScreen("default");
     overlay.classList.remove("overlay--record");
+    overlay.setAttribute("aria-busy", "false");
     overlay.classList.remove("visible");
   }
 
   function updateScoreDisplay(score, bestScore) {
-    scoreValue.textContent = Math.floor(score);
-    recordValue.textContent = String(bestScore);
+    const nextScoreText = String(Math.floor(score));
+    const nextBestScoreText = String(bestScore);
+
+    if (renderCache.scoreText !== nextScoreText) {
+      scoreValue.textContent = nextScoreText;
+      renderCache.scoreText = nextScoreText;
+    }
+
+    if (renderCache.bestScoreText !== nextBestScoreText) {
+      recordValue.textContent = nextBestScoreText;
+      renderCache.bestScoreText = nextBestScoreText;
+    }
   }
 
   function updateCoinDisplay(coinsCollected) {
     if (coinValue) {
-      coinValue.textContent = String(coinsCollected);
+      const nextCoinText = String(coinsCollected);
+
+      if (renderCache.coinText !== nextCoinText) {
+        coinValue.textContent = nextCoinText;
+        renderCache.coinText = nextCoinText;
+      }
     }
   }
 
@@ -270,7 +336,7 @@ export function createUI({
   }
 
   function announceScoresReset(bestScore) {
-    overlayText.textContent = `Les records ont ete remis a zero.\nRecord actuel : ${bestScore}`;
+    overlayText.textContent = `Le score et les records ont ete remis a zero.\nRecord actuel : ${bestScore}`;
   }
 
   return {
@@ -283,12 +349,14 @@ export function createUI({
     resetLivesDisplay,
     restoreHeart,
     setDifficultySelection,
+    showLoadingOverlay,
     setLevelSelection,
     setSettingsButtonActive,
     setTouchJumpVisible,
     setTouchMode,
     setupLivesDisplay,
     showOverlay,
+    updateLoadingProgress,
     updateCoinDisplay,
     updateLivesAriaLabel,
     updateScoreDisplay,

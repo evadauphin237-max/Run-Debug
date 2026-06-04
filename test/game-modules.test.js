@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { findBonusHeartCollision, findCoinCollision, findObstacleCollision } from "../src/game/collision-system.js";
+import {
+  findBonusHeartCollision,
+  findCoinCollision,
+  findObstacleCollision,
+  findObstacleCollisionDetails,
+} from "../src/game/collision-system.js";
 import {
   beginVictoryTransition,
   createGameState,
@@ -96,6 +101,24 @@ test("collision system finds overlapping obstacles, hearts and coins", () => {
   assert.equal(findCoinCollision(player, [coin]), coin);
 });
 
+test("collision system still reports stomps during hit cooldown", () => {
+  const player = {
+    x: 150,
+    y: 166,
+    previousY: 140,
+    width: 62,
+    height: 82,
+    velocityY: 240,
+  };
+  const obstacle = { kind: "animated-bug", x: 160, y: 240, width: 82, height: 82 };
+
+  const collision = findObstacleCollisionDetails(player, [obstacle]);
+
+  assert.equal(collision?.obstacle, obstacle);
+  assert.equal(collision?.stomped, true);
+  assert.equal(findObstacleCollision(player, [obstacle], 0.5), obstacle);
+});
+
 test("player visual state machine resolves states by priority", () => {
   const difficulty = {
     startSpeed: 320,
@@ -113,6 +136,7 @@ test("player visual state machine resolves states by priority", () => {
     didBeatRecordOnDeath: false,
     deathFallDuration: 0.96,
     isPlayerHeadInImpactState: false,
+    hitAnimationTime: null,
   };
 
   assert.equal(resolvePlayerVisualState(state, player, runtime), PLAYER_VISUAL_STATES.IDLE);
@@ -127,6 +151,7 @@ test("player visual state machine resolves states by priority", () => {
   assert.equal(resolvePlayerVisualState(state, player, runtime), PLAYER_VISUAL_STATES.DOUBLE_JUMPING);
 
   runtime.isPlayerHeadInImpactState = true;
+  runtime.hitAnimationTime = 0;
   assert.equal(resolvePlayerVisualState(state, player, runtime), PLAYER_VISUAL_STATES.HIT);
 
   state.pendingVictory = true;
@@ -139,6 +164,7 @@ test("player visual state machine resolves states by priority", () => {
   state.pendingVictory = false;
   state.pendingGameOver = false;
   runtime.isPlayerHeadInImpactState = false;
+  runtime.hitAnimationTime = null;
   assert.equal(resolvePlayerVisualState(state, player, runtime), PLAYER_VISUAL_STATES.GAME_OVER);
 
   runtime.didBeatRecordOnDeath = true;
@@ -162,11 +188,12 @@ test("player visual state machine maps states to animation sheets", () => {
     didBeatRecordOnDeath: false,
     deathFallDuration: 0.96,
     isPlayerHeadInImpactState: false,
+    hitAnimationTime: null,
   };
 
   assert.equal(
     createPlayerAnimationFromVisualState(PLAYER_VISUAL_STATES.IDLE, state, player, runtime).sheet,
-    "idle"
+    "idleIntro"
   );
   assert.equal(
     createPlayerAnimationFromVisualState(PLAYER_VISUAL_STATES.RUNNING, state, player, runtime).sheet,
@@ -196,6 +223,71 @@ test("player visual state machine maps states to animation sheets", () => {
     createPlayerAnimationFromVisualState(PLAYER_VISUAL_STATES.VICTORY, state, player, runtime).sheet,
     "win"
   );
+});
+
+test("victory state stays on win and loops over the last four frames", () => {
+  const difficulty = {
+    startSpeed: 320,
+    maxSpeedFactor: 1.35,
+    obstacleDelayMin: 0.9,
+    obstacleDelayMax: 1.55,
+    gravity: 2100,
+    jumpStrength: 760,
+    doubleJumpMultiplier: 0.94,
+  };
+  const world = { groundY: 430 };
+  const state = createGameState(difficulty, 0);
+  const player = createPlayer(world, difficulty);
+  const runtime = {
+    didBeatRecordOnDeath: true,
+    deathFallDuration: 0.96,
+    isPlayerHeadInImpactState: false,
+    hitAnimationTime: null,
+  };
+
+  state.gameOver = true;
+  state.gameOverAnimationTime = 30;
+
+  assert.equal(resolvePlayerVisualState(state, player, runtime), PLAYER_VISUAL_STATES.VICTORY);
+
+  const animation = createPlayerAnimationFromVisualState(PLAYER_VISUAL_STATES.VICTORY, state, player, runtime);
+  assert.equal(animation.sheet, "win");
+  assert.ok(animation.frameIndex >= 79);
+  assert.ok(animation.frameIndex <= 82);
+});
+
+test("home idle animation loops across the full papillon sequence", () => {
+  const difficulty = {
+    startSpeed: 320,
+    maxSpeedFactor: 1.35,
+    obstacleDelayMin: 0.9,
+    obstacleDelayMax: 1.55,
+    gravity: 2100,
+    jumpStrength: 760,
+    doubleJumpMultiplier: 0.94,
+  };
+  const world = { groundY: 430 };
+  const state = createGameState(difficulty, 0);
+  const player = createPlayer(world, difficulty);
+  const runtime = {
+    didBeatRecordOnDeath: false,
+    deathFallDuration: 0.96,
+    isPlayerHeadInImpactState: false,
+    hitAnimationTime: null,
+  };
+
+  state.headSwingTime = 0;
+  let animation = createPlayerAnimationFromVisualState(PLAYER_VISUAL_STATES.IDLE, state, player, runtime);
+  assert.equal(animation.frameIndex, 0);
+  assert.equal(animation.height > 220, true);
+
+  state.headSwingTime = 70 / 5;
+  animation = createPlayerAnimationFromVisualState(PLAYER_VISUAL_STATES.IDLE, state, player, runtime);
+  assert.equal(animation.frameIndex, 70);
+
+  state.headSwingTime = 71 / 5;
+  animation = createPlayerAnimationFromVisualState(PLAYER_VISUAL_STATES.IDLE, state, player, runtime);
+  assert.equal(animation.frameIndex, 0);
 });
 
 test("frame delta clamps long frames and initializes cleanly", () => {
@@ -327,15 +419,16 @@ test("runtime reset clears the forest auto-transition loop counter", () => {
 
 test("impact slowdown reduces visible travel speed during hit recovery", () => {
   assert.equal(getImpactTravelMultiplier(0), 1);
-  assert.ok(getImpactTravelMultiplier(5) < 0.5);
-  assert.ok(getImpactTravelMultiplier(1) > getImpactTravelMultiplier(4));
+  assert.ok(getImpactTravelMultiplier(1.5) < 0.5);
+  assert.ok(getImpactTravelMultiplier(0.5) > getImpactTravelMultiplier(1.2));
   assert.ok(Math.abs(getEffectiveTravelSpeed({ speed: 400, hitCooldown: 0 }) - 400) < 1e-9);
-  assert.ok(getEffectiveTravelSpeed({ speed: 400, hitCooldown: 5 }) < 200);
+  assert.ok(getEffectiveTravelSpeed({ speed: 400, hitCooldown: 1.5 }) < 200);
 });
 
 test("loop helpers decide spawns, collisions and pending game over consistently", () => {
   const state = {
     pendingGameOver: false,
+    hitCooldown: 0,
     obstacleTimer: 1.2,
     nextObstacleIn: 1.1,
     coinTimer: 1.7,
@@ -385,6 +478,18 @@ test("loop helpers decide spawns, collisions and pending game over consistently"
   assert.equal(
     shouldSpawnObstacleNow(state, { ...runtime, isPlayerHeadInImpactState: true }),
     false
+  );
+  assert.equal(
+    shouldSpawnObstacleNow({ ...state, hitCooldown: 1.2 }, runtime),
+    false
+  );
+  assert.equal(
+    shouldSpawnObstacleNow({ ...state, hitCooldown: 0.4 }, runtime),
+    false
+  );
+  assert.equal(
+    shouldSpawnObstacleNow({ ...state, hitCooldown: 0 }, runtime),
+    true
   );
   assert.equal(shouldResolveGameplayCollisions({ ...state, pendingGameOver: true }), false);
   assert.equal(shouldResolveGameplayCollisions({ ...state, pendingVictory: true }), false);

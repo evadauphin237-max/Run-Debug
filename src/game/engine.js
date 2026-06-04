@@ -48,6 +48,7 @@ export function createGame(elements) {
   const FOREST_TO_VALLEY_BRIDGE_LOOPS = 1;
   const VALLEY_MIDGROUND_SEQUENCE_LAST_INDEX = 7;
   const HIT_ANIMATION_DURATION = 0.5;
+  const HIT_INVULNERABILITY_DURATION = 1.5;
 
   const ctx = canvas.getContext("2d");
   const world = createWorld();
@@ -76,9 +77,9 @@ export function createGame(elements) {
   let cleanupViewportResize = null;
   let isSettingsOverlayOpen = false;
 
-function getJumpInstructions() {
-  return "Choisis ton niveau, ajuste le rythme, puis lance la partie.";
-}
+  function getJumpInstructions() {
+    return "Choisis ton niveau, ajuste le rythme, puis lance la partie.";
+  }
 
   function syncTouchMode() {
     runtime.inputMode = view.getInputMode();
@@ -151,7 +152,7 @@ function getJumpInstructions() {
 
     obstacles = removeEntity(obstacles, obstacle);
     state.lives = Math.max(0, state.lives - 1);
-    state.hitCooldown = 5;
+    state.hitCooldown = HIT_INVULNERABILITY_DURATION;
     view.breakHeart(state.lives, state.lives);
 
     if (state.lives === 0) {
@@ -193,7 +194,7 @@ function getJumpInstructions() {
   }
 
   function checkCollision() {
-    const collision = findObstacleCollisionDetails(player, obstacles, state.hitCooldown);
+    const collision = findObstacleCollisionDetails(player, obstacles);
 
     if (!collision) {
       return;
@@ -201,6 +202,10 @@ function getJumpInstructions() {
 
     if (collision.stomped && isAnimatedBugKind(collision.obstacle.kind)) {
       squashBug(collision);
+      return;
+    }
+
+    if (state.hitCooldown > 0) {
       return;
     }
 
@@ -403,7 +408,7 @@ function getJumpInstructions() {
   }
 
   function canSpawnObstacles() {
-    return level.id !== "storybook";
+    return true;
   }
 
   function update(timestamp) {
@@ -510,12 +515,18 @@ function getJumpInstructions() {
     view.renderLevelOptions(LEVEL_OPTIONS, level.id, setLevel);
     view.setDifficultySelection(difficulty.id);
     view.setLevelSelection(level.id);
-    syncTouchMode();
-    clouds = createClouds();
-    initGame();
     view.setActionButtonDisabled(true);
     view.setResetScoresButtonDisabled(true);
     view.setSettingsButtonDisabled(true);
+    syncTouchMode();
+    clouds = createClouds();
+    updateHudDisplay();
+    view.resetLivesDisplay(state.lives);
+    view.showLoadingOverlay({
+      loaded: 0,
+      total: 0,
+      progress: 0,
+    });
     renderer.draw({ state, player, runtime, clouds, obstacles, coins, bonusHearts, bugHitEffects, levelId: getRenderedLevelId() });
     browser.requestAnimationFrame(update);
 
@@ -559,7 +570,11 @@ function getJumpInstructions() {
 
       resetScores();
     });
-    preloadCoreAssets()
+    preloadCoreAssets({
+      onProgress: (progressState) => {
+        view.updateLoadingProgress(progressState);
+      },
+    })
       .then(() => {
         runtime.assetsReady = true;
         view.setActionButtonDisabled(false);

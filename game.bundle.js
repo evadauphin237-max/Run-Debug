@@ -27,7 +27,7 @@
 
   // src/game/config.js
   var MAX_LIVES = 3;
-  var BEST_SCORE_STORAGE_KEY = "run-and-debug-best-score-v7";
+  var BEST_SCORE_STORAGE_KEY = "run-and-debug-best-score-v8";
   var DIFFICULTY_STORAGE_KEY = "run-and-debug-difficulty-v1";
   var LEVEL_STORAGE_KEY = "run-and-debug-level-v1";
   var WORLD_WIDTH = 960;
@@ -127,11 +127,6 @@
       id: "valley",
       label: "3. Vallee des Variables",
       description: "La vallee panoramique sur plusieurs plans."
-    },
-    {
-      id: "storybook",
-      label: "4. Horizon Storybook",
-      description: "Le decor pastel final, sans obstacles."
     }
   ];
   function getDifficultyById(id) {
@@ -338,15 +333,20 @@
       }
     ])
   );
+  var settingsIconAsset = createLazyImageAsset(new URL("./assets/settings.svg", document.baseURI).href);
+  var heartLifeActiveAsset = createLazyImageAsset(new URL("./assets/heart-life-active.svg", document.baseURI).href);
+  var heartFillActiveAsset = createLazyImageAsset(new URL("./assets/heart-fill-active.svg", document.baseURI).href);
+  var heartLifeLostAsset = createLazyImageAsset(new URL("./assets/heart-life-lost.svg", document.baseURI).href);
   var bonusHeartAsset = createLazyImageAsset(new URL("./assets/coeur.svg", document.baseURI).href);
   var coinAsset = createLazyImageAsset(new URL("./assets/dollar.png", document.baseURI).href);
-  var playerIdleFrameAssets = Array.from({ length: 19 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/idle/${index + 1}.svg`, document.baseURI).href));
+  var playerIdleIntroFrameAssets = Array.from({ length: 71 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/idle/papillon/${index + 1}.svg`, document.baseURI).href));
+  var playerIdleFrameAssets = Array.from({ length: 26 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/idle/${index + 1}.svg`, document.baseURI).href));
   var playerRunFrameAssets = Array.from({ length: 15 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/court/${index + 1}.svg`, document.baseURI).href));
   var playerJumpFrameAssets = Array.from({ length: 8 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/saut/${index + 1}.svg`, document.baseURI).href));
   var playerDoubleJumpFrameAssets = Array.from({ length: 6 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/doublesaut/${index + 1}.svg`, document.baseURI).href));
   var playerHitFrameAssets = Array.from({ length: 4 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/hit/${index + 1}.svg`, document.baseURI).href));
   var playerGameOverFrameAssets = Array.from({ length: 20 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/game over/${index + 1}.svg`, document.baseURI).href));
-  var playerWinFrameAssets = Array.from({ length: 9 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/win/${index + 1}.svg`, document.baseURI).href));
+  var playerWinFrameAssets = Array.from({ length: 83 }, (_, index) => createLazyImageAsset(new URL(`./assets/personnage/win/Win2/${index + 1}.svg`, document.baseURI).href));
   var cloudAssets = [
     createLazyImageAsset(new URL("./assets/decor/nuage1.svg", document.baseURI).href),
     createLazyImageAsset(new URL("./assets/decor/nuage2.svg", document.baseURI).href),
@@ -385,11 +385,6 @@
       midground: valleyMidgroundSequenceAssets[0],
       midgroundSequence: valleyMidgroundSequenceAssets,
       foreground: forestForegroundAsset
-    },
-    storybook: {
-      background: null,
-      midground: null,
-      foreground: createLazyImageAsset(new URL("./assets/decor/valee/Design sans titre.svg", document.baseURI).href)
     }
   };
   function createBugAtlasView(familyName) {
@@ -409,10 +404,7 @@
       }
     };
   }
-  function loadAtlasFamily(familyName) {
-    return atlasAssets[familyName].imageAsset.load();
-  }
-  function preloadCoreAssets() {
+  function collectCoreAssets() {
     const levelDecorAssets = Object.values(decorAssets).flatMap((theme) => [
       theme.background,
       theme.thirdground,
@@ -421,20 +413,44 @@
       theme.foreground,
       theme.sun
     ].filter(Boolean));
-    return Promise.all([
-      ...CORE_ATLAS_FAMILIES.map(loadAtlasFamily),
-      bonusHeartAsset.load(),
-      coinAsset.load(),
-      ...playerIdleFrameAssets.map((asset) => asset.load()),
-      ...playerRunFrameAssets.map((asset) => asset.load()),
-      ...playerJumpFrameAssets.map((asset) => asset.load()),
-      ...playerDoubleJumpFrameAssets.map((asset) => asset.load()),
-      ...playerHitFrameAssets.map((asset) => asset.load()),
-      ...playerGameOverFrameAssets.map((asset) => asset.load()),
-      ...playerWinFrameAssets.map((asset) => asset.load()),
-      ...levelDecorAssets.map((asset) => asset.load()),
-      ...cloudAssets.map((asset) => asset.load())
-    ]);
+    return [.../* @__PURE__ */ new Set([
+      ...CORE_ATLAS_FAMILIES.map((familyName) => atlasAssets[familyName].imageAsset),
+      settingsIconAsset,
+      heartLifeActiveAsset,
+      heartFillActiveAsset,
+      heartLifeLostAsset,
+      bonusHeartAsset,
+      coinAsset,
+      ...playerIdleIntroFrameAssets,
+      ...playerIdleFrameAssets,
+      ...playerRunFrameAssets,
+      ...playerJumpFrameAssets,
+      ...playerDoubleJumpFrameAssets,
+      ...playerHitFrameAssets,
+      ...playerGameOverFrameAssets,
+      ...playerWinFrameAssets,
+      ...levelDecorAssets,
+      ...cloudAssets
+    ])];
+  }
+  function preloadCoreAssets({ onProgress } = {}) {
+    const assets = collectCoreAssets();
+    const total = assets.length;
+    let loaded = 0;
+    onProgress?.({
+      loaded,
+      total,
+      progress: total > 0 ? 0 : 1
+    });
+    return Promise.all(assets.map((asset) => asset.load().then((resource) => {
+      loaded += 1;
+      onProgress?.({
+        loaded,
+        total,
+        progress: total > 0 ? loaded / total : 1
+      });
+      return resource;
+    })));
   }
   function warmGameplayAssets() {
   }
@@ -491,17 +507,18 @@
       midgroundSequence: decorAssets.valley.midgroundSequence.map((asset) => createImageSprite(asset)),
       foreground: createImageSprite(decorAssets.valley.foreground)
     },
-    storybook: {
-      background: null,
-      midground: null,
-      foreground: createImageSprite(decorAssets.storybook.foreground)
-    },
     clouds: cloudAssets.map((asset) => createImageSprite(asset))
   };
   var playerVisualAssets = {
+    idleIntro: {
+      frameAssets: playerIdleIntroFrameAssets,
+      matte: "white",
+      preserveFrameBounds: true
+    },
     idle: {
       frameAssets: playerIdleFrameAssets,
-      matte: "white"
+      matte: "white",
+      preserveFrameBounds: true
     },
     run: {
       frameAssets: playerRunFrameAssets,
@@ -521,17 +538,108 @@
     },
     chute: {
       frameAssets: playerGameOverFrameAssets.slice(0, 5),
-      matte: "white"
+      matte: "white",
+      preserveFrameBounds: true
     },
     gameOver: {
       frameAssets: playerGameOverFrameAssets,
-      matte: "white"
+      matte: "white",
+      preserveFrameBounds: true
     },
     win: {
       frameAssets: playerWinFrameAssets,
-      matte: "white"
+      matte: "white",
+      preserveFrameBounds: true
     }
   };
+
+  // src/game/collision-system.js
+  function findObstacleCollisionDetails(player, obstacles) {
+    const hitboxX = player.x + 8;
+    const hitboxY = player.y + 6;
+    const hitboxWidth = player.width - 18;
+    const hitboxHeight = player.height - 4;
+    const previousBottom = player.previousY + 6 + hitboxHeight;
+    const currentBottom = hitboxY + hitboxHeight;
+    for (const obstacle of obstacles) {
+      let obstacleHitboxX = obstacle.x + 4;
+      let obstacleHitboxY = obstacle.y + 4;
+      let obstacleHitboxWidth = obstacle.width - 8;
+      let obstacleHitboxHeight = obstacle.height - 8;
+      if (obstacle.kind === "animated-bug") {
+        obstacleHitboxX = obstacle.x - 12;
+        obstacleHitboxY = obstacle.y + 4;
+        obstacleHitboxWidth = obstacle.width - 22;
+        obstacleHitboxHeight = obstacle.height - 8;
+      } else if (obstacle.kind === "animated-bug-b") {
+        obstacleHitboxX = obstacle.x + 6;
+        obstacleHitboxY = obstacle.y + 18;
+        obstacleHitboxWidth = obstacle.width - 12;
+        obstacleHitboxHeight = obstacle.height - 22;
+      }
+      if (hitboxX >= obstacleHitboxX + obstacleHitboxWidth || hitboxX + hitboxWidth <= obstacleHitboxX || hitboxY >= obstacleHitboxY + obstacleHitboxHeight || currentBottom <= obstacleHitboxY) {
+        continue;
+      }
+      const obstacleTop = obstacleHitboxY;
+      const stompTolerance = Math.max(10, player.height * 0.2);
+      const stomped = player.velocityY > 0 && previousBottom <= obstacleTop + stompTolerance && currentBottom >= obstacleTop;
+      return {
+        obstacle,
+        stomped,
+        obstacleTop,
+        obstacleHitbox: {
+          x: obstacleHitboxX,
+          y: obstacleHitboxY,
+          width: obstacleHitboxWidth,
+          height: obstacleHitboxHeight
+        }
+      };
+    }
+    return null;
+  }
+  function removeEntity(list, entity) {
+    const index = list.indexOf(entity);
+    if (index === -1) {
+      return list;
+    }
+    const nextList = list.slice();
+    nextList.splice(index, 1);
+    return nextList;
+  }
+  function findBonusHeartCollision(player, bonusHearts) {
+    const hitboxX = player.x + 8;
+    const hitboxY = player.y + 6;
+    const hitboxRight = hitboxX + player.width - 18;
+    const hitboxBottom = hitboxY + player.height - 4;
+    for (const heart of bonusHearts) {
+      const floatOffset = Math.sin(heart.floatTime) * 8;
+      const heartHitboxX = heart.x + 4;
+      const heartHitboxY = heart.y + floatOffset + 4;
+      const heartHitboxRight = heartHitboxX + heart.width - 8;
+      const heartHitboxBottom = heartHitboxY + heart.height - 8;
+      if (hitboxX < heartHitboxRight && hitboxRight > heartHitboxX && hitboxY < heartHitboxBottom && hitboxBottom > heartHitboxY) {
+        return heart;
+      }
+    }
+    return null;
+  }
+  function findCoinCollision(player, coins) {
+    const hitboxX = player.x + 8;
+    const hitboxY = player.y + 6;
+    const hitboxRight = hitboxX + player.width - 18;
+    const hitboxBottom = hitboxY + player.height - 4;
+    for (const coin of coins) {
+      const floatOffset = Math.sin(coin.floatTime) * 8;
+      const coinHitboxX = coin.x + 6;
+      const coinHitboxY = coin.y + floatOffset + 6;
+      const coinHitboxRight = coinHitboxX + coin.width - 12;
+      const coinHitboxBottom = coinHitboxY + coin.height - 12;
+      if (hitboxX < coinHitboxRight && hitboxRight > coinHitboxX && hitboxY < coinHitboxBottom && hitboxBottom > coinHitboxY) {
+        return coin;
+      }
+    }
+    return null;
+  }
 
   // src/game/logic.js
   function clamp(value, min, max) {
@@ -563,59 +671,6 @@
     }
     return 1;
   }
-  function getObstacleHitbox(obstacle) {
-    if (obstacle.kind === "animated-bug") {
-      return {
-        x: obstacle.x - 12,
-        y: obstacle.y + 4,
-        width: obstacle.width - 22,
-        height: obstacle.height - 8
-      };
-    }
-    if (obstacle.kind === "animated-bug-b") {
-      return {
-        x: obstacle.x + 6,
-        y: obstacle.y + 18,
-        width: obstacle.width - 12,
-        height: obstacle.height - 22
-      };
-    }
-    return {
-      x: obstacle.x + 4,
-      y: obstacle.y + 4,
-      width: obstacle.width - 8,
-      height: obstacle.height - 8
-    };
-  }
-  function createPlayerHitbox(player) {
-    return {
-      x: player.x + 8,
-      y: player.y + 6,
-      width: player.width - 18,
-      height: player.height - 4
-    };
-  }
-  function createHeartHitbox(heart) {
-    const floatOffset = Math.sin(heart.floatTime) * 8;
-    return {
-      x: heart.x + 4,
-      y: heart.y + floatOffset + 4,
-      width: heart.width - 8,
-      height: heart.height - 8
-    };
-  }
-  function createCoinHitbox(coin) {
-    const floatOffset = Math.sin(coin.floatTime) * 8;
-    return {
-      x: coin.x + 6,
-      y: coin.y + floatOffset + 6,
-      width: coin.width - 12,
-      height: coin.height - 12
-    };
-  }
-  function rectsIntersect(a, b) {
-    return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
-  }
   function computeNextObstacleDelay(speed, difficulty, random = Math.random) {
     const speedFactor = Math.min(speed / difficulty.startSpeed, difficulty.maxSpeedFactor);
     return randomRange(difficulty.obstacleDelayMin, difficulty.obstacleDelayMax, random) / speedFactor;
@@ -630,9 +685,6 @@
   }
   function shouldSpawnCoin(coinTimer, nextCoinIn) {
     return coinTimer >= nextCoinIn;
-  }
-  function getIdleFrameIndex(animationTime, frameCount = 19, framesPerSecond = 10) {
-    return Math.min(frameCount - 1, Math.floor(animationTime * framesPerSecond));
   }
   function getJumpFrameIndex(jumpAnimationTime, jumpStrength, gravity) {
     const totalJumpDuration = jumpStrength * 2 / gravity;
@@ -660,16 +712,17 @@
     const progress = Math.min(0.999, deathFallTime / deathFallDuration);
     return Math.min(frameCount - 1, Math.floor(progress * frameCount));
   }
-  function getWinFrameIndex(animationTime, frameCount, framesPerSecond = 3.2) {
+  function getWinFrameIndex(animationTime, frameCount, framesPerSecond = 3.2, loopTailCount = 4) {
+    if (frameCount <= 0 || framesPerSecond <= 0) {
+      return 0;
+    }
     const frameStep = Math.floor(animationTime * framesPerSecond);
     if (frameStep < frameCount) {
       return frameStep;
     }
-    if (frameCount <= 2) {
-      return frameCount - 1;
-    }
-    const loopStart = frameCount - 2;
-    return loopStart + (frameStep - frameCount) % 2;
+    const loopLength = Math.max(1, Math.min(loopTailCount, frameCount));
+    const loopStart = frameCount - loopLength;
+    return loopStart + (frameStep - frameCount) % loopLength;
   }
   function createClouds() {
     return [
@@ -678,57 +731,6 @@
       { x: 570, y: 88, scale: 1.15, speedFactor: 1.1 },
       { x: 780, y: 142, scale: 0.92, speedFactor: 0.95 }
     ];
-  }
-
-  // src/game/collision-system.js
-  function findObstacleCollisionDetails(player, obstacles, hitCooldown = 0) {
-    if (hitCooldown > 0) {
-      return null;
-    }
-    const hitbox = createPlayerHitbox(player);
-    const previousHitbox = {
-      ...hitbox,
-      y: player.previousY + 6
-    };
-    for (const obstacle of obstacles) {
-      const obstacleHitbox = getObstacleHitbox(obstacle);
-      if (!rectsIntersect(hitbox, obstacleHitbox)) {
-        continue;
-      }
-      const previousBottom = previousHitbox.y + previousHitbox.height;
-      const currentBottom = hitbox.y + hitbox.height;
-      const obstacleTop = obstacleHitbox.y;
-      const stompTolerance = Math.max(10, player.height * 0.2);
-      const stomped = player.velocityY > 0 && previousBottom <= obstacleTop + stompTolerance && currentBottom >= obstacleTop;
-      return {
-        obstacle,
-        stomped,
-        obstacleTop,
-        obstacleHitbox
-      };
-    }
-    return null;
-  }
-  function removeEntity(list, entity) {
-    return list.filter((item) => item !== entity);
-  }
-  function findBonusHeartCollision(player, bonusHearts) {
-    const hitbox = createPlayerHitbox(player);
-    for (const heart of bonusHearts) {
-      if (rectsIntersect(hitbox, createHeartHitbox(heart))) {
-        return heart;
-      }
-    }
-    return null;
-  }
-  function findCoinCollision(player, coins) {
-    const hitbox = createPlayerHitbox(player);
-    for (const coin of coins) {
-      if (rectsIntersect(hitbox, createCoinHitbox(coin))) {
-        return coin;
-      }
-    }
-    return null;
   }
 
   // src/game/game-state.js
@@ -1039,7 +1041,7 @@ Mode : ${difficultyLabel}`
   }
   function createBackgroundRenderer(ctx, world) {
     const layerBitmapCache = /* @__PURE__ */ new WeakMap();
-    const croppedLayerCache = /* @__PURE__ */ new WeakMap();
+    let skyGradient = null;
     const FOREST_CLOUD_SOURCES = [
       { x: 370, y: 42, width: 417, height: 153 },
       { x: 806, y: 177, width: 151, height: 62 },
@@ -1058,13 +1060,6 @@ Mode : ${difficultyLabel}`
       width: 141,
       height: 138
     };
-    const STORYBOOK_SOURCE = {
-      x: 4,
-      y: 472,
-      width: 1912,
-      height: 135
-    };
-    const STORYBOOK_TARGET_HEIGHT_RATIO = 314 / 1143 * 2;
     function createScratchCanvas(width, height) {
       if (typeof OffscreenCanvas !== "undefined") {
         return new OffscreenCanvas(width, height);
@@ -1141,87 +1136,13 @@ Mode : ${difficultyLabel}`
         seamWidth
       };
     }
-    function getPreparedCroppedLayer(sprite, source, targetHeight, seamPatchWidth = 0) {
-      if (!sprite || !isImageReady(sprite.image)) {
-        return null;
-      }
-      const sourceWidth = Math.max(1, source.width);
-      const sourceHeight = Math.max(1, source.height);
-      const normalizedTargetHeight = Math.max(1, Math.round(targetHeight));
-      const targetWidth = Math.max(1, Math.round(sourceWidth / sourceHeight * normalizedTargetHeight));
-      const seamWidth = seamPatchWidth > 0 ? Math.min(targetWidth, seamPatchWidth + LAYER_SEAM_OVERDRAW * 2) : 0;
-      const cacheKey = `${source.x}:${source.y}:${sourceWidth}:${sourceHeight}:${targetWidth}:${normalizedTargetHeight}:${seamWidth}`;
-      const cachedLayer = croppedLayerCache.get(sprite.image);
-      if (cachedLayer?.key === cacheKey) {
-        return {
-          sourceWidth,
-          sourceHeight,
-          targetWidth,
-          targetHeight: normalizedTargetHeight,
-          y: world.height - normalizedTargetHeight,
-          canvas: cachedLayer.canvas,
-          seamWidth
-        };
-      }
-      const canvas2 = createScratchCanvas(targetWidth + seamWidth * 2, normalizedTargetHeight);
-      const scratchCtx = canvas2.getContext("2d");
-      scratchCtx.imageSmoothingEnabled = true;
-      scratchCtx.clearRect(0, 0, canvas2.width, canvas2.height);
-      scratchCtx.drawImage(
-        sprite.image,
-        source.x,
-        source.y,
-        sourceWidth,
-        sourceHeight,
-        seamWidth,
-        0,
-        targetWidth,
-        normalizedTargetHeight
-      );
-      if (seamWidth > 0) {
-        const sourcePatchWidth = Math.min(sourceWidth, Math.max(1, Math.round(seamWidth / targetWidth * sourceWidth)));
-        scratchCtx.drawImage(
-          sprite.image,
-          source.x + sourceWidth - sourcePatchWidth,
-          source.y,
-          sourcePatchWidth,
-          sourceHeight,
-          0,
-          0,
-          seamWidth,
-          normalizedTargetHeight
-        );
-        scratchCtx.drawImage(
-          sprite.image,
-          source.x,
-          source.y,
-          sourcePatchWidth,
-          sourceHeight,
-          seamWidth + targetWidth,
-          0,
-          seamWidth,
-          normalizedTargetHeight
-        );
-      }
-      croppedLayerCache.set(sprite.image, {
-        key: cacheKey,
-        canvas: canvas2
-      });
-      return {
-        sourceWidth,
-        sourceHeight,
-        targetWidth,
-        targetHeight: normalizedTargetHeight,
-        y: world.height - normalizedTargetHeight,
-        canvas: canvas2,
-        seamWidth
-      };
-    }
     function drawSky() {
-      const skyGradient = ctx.createLinearGradient(0, 0, 0, world.height);
-      skyGradient.addColorStop(0, "#ffb3e6");
-      skyGradient.addColorStop(0.52, "#c9c2ff");
-      skyGradient.addColorStop(1, "#8fdcff");
+      if (!skyGradient) {
+        skyGradient = ctx.createLinearGradient(0, 0, 0, world.height);
+        skyGradient.addColorStop(0, "#ffb3e6");
+        skyGradient.addColorStop(0.52, "#c9c2ff");
+        skyGradient.addColorStop(1, "#8fdcff");
+      }
       ctx.fillStyle = skyGradient;
       ctx.fillRect(0, 0, world.width, world.height);
     }
@@ -1379,7 +1300,8 @@ Mode : ${difficultyLabel}`
       return true;
     }
     function drawCloudFallbacks(clouds, state) {
-      clouds.forEach((cloud, index) => {
+      for (let index = 0; index < clouds.length; index += 1) {
+        const cloud = clouds[index];
         const cloudRadius = 62 * cloud.scale;
         const wrapWidth = world.width + 320;
         const travelDistance = state.cloudOffset * cloud.speedFactor % wrapWidth;
@@ -1405,7 +1327,7 @@ Mode : ${difficultyLabel}`
           }
           ctx.restore();
         }
-      });
+      }
     }
     function drawClouds(clouds, state) {
       const referenceCloudSprite = decorSprites.clouds[0];
@@ -1413,10 +1335,11 @@ Mode : ${difficultyLabel}`
         drawCloudFallbacks(clouds, state);
         return;
       }
-      clouds.forEach((cloud, index) => {
+      for (let index = 0; index < clouds.length; index += 1) {
+        const cloud = clouds[index];
         const cloudSprite = decorSprites.clouds[index % decorSprites.clouds.length];
         drawScrollingLayer(cloudSprite, state.cloudOffset * cloud.speedFactor);
-      });
+      }
     }
     function drawWrappedSkySprite(sprite, source, baseX, y, drawWidth, motionOffset, alpha = 1) {
       if (!sprite || !isImageReady(sprite.image)) {
@@ -1447,7 +1370,8 @@ Mode : ${difficultyLabel}`
       ctx.restore();
     }
     function drawForestClouds(state) {
-      FOREST_CLOUD_LAYOUTS.forEach((layout, index) => {
+      for (let index = 0; index < FOREST_CLOUD_LAYOUTS.length; index += 1) {
+        const layout = FOREST_CLOUD_LAYOUTS[index];
         const cloudSprite = decorSprites.clouds[index];
         const source = FOREST_CLOUD_SOURCES[index];
         if (!source || !cloudSprite || !isImageReady(cloudSprite.image)) {
@@ -1463,7 +1387,7 @@ Mode : ${difficultyLabel}`
           state.cloudOffset * layout.speedFactor,
           0.98
         );
-      });
+      }
     }
     function drawForestSun(levelDecor, state) {
       const sunSprite = levelDecor.sun;
@@ -1595,20 +1519,6 @@ Mode : ${difficultyLabel}`
         drawValleySequence(state, runtime);
         return;
       }
-      if (levelId === "storybook") {
-        drawSky();
-        drawSharedSkyDecor(state);
-        const preparedStorybookLayer = getPreparedCroppedLayer(
-          levelDecor.foreground,
-          STORYBOOK_SOURCE,
-          world.height * STORYBOOK_TARGET_HEIGHT_RATIO,
-          LAYER_SEAM_PATCH_WIDTH.foreground
-        );
-        if (preparedStorybookLayer) {
-          drawPreparedLayer(preparedStorybookLayer, state.groundOffset);
-        }
-        return;
-      }
       drawSky();
       drawSharedSkyDecor(state);
       drawScrollingLayer(
@@ -1634,6 +1544,7 @@ Mode : ${difficultyLabel}`
 
   // src/game/render-effects.js
   function createEffectsRenderer(ctx) {
+    const canvasWidth = ctx.canvas.width;
     function drawObstacleFallback(width, height) {
       ctx.fillStyle = "rgba(22, 50, 79, 0.9)";
       ctx.beginPath();
@@ -1670,8 +1581,12 @@ Mode : ${difficultyLabel}`
       ctx.stroke();
     }
     function drawBugHitEffects(bugHitEffects) {
-      bugHitEffects.forEach((effect) => {
+      for (let index = 0; index < bugHitEffects.length; index += 1) {
+        const effect = bugHitEffects[index];
         const alpha = clamp(effect.timeLeft / 0.42, 0, 1);
+        if (alpha <= 0 || effect.x + effect.width <= 0 || effect.x >= canvasWidth) {
+          continue;
+        }
         const settings = bugVisualSettings[effect.kind];
         const hitFrame = settings.hitFrame;
         const sourceImage = settings.image;
@@ -1701,10 +1616,14 @@ Mode : ${difficultyLabel}`
           drawObstacleFallback(effect.width, effect.height);
         }
         ctx.restore();
-      });
+      }
     }
     function drawBonusHearts(bonusHearts) {
-      bonusHearts.forEach((heart) => {
+      for (let index = 0; index < bonusHearts.length; index += 1) {
+        const heart = bonusHearts[index];
+        if (heart.x + heart.width <= 0 || heart.x >= canvasWidth) {
+          continue;
+        }
         const floatOffset = Math.sin(heart.floatTime) * 8;
         const pulseScale = 1 + Math.sin(heart.floatTime * 2.4) * 0.1;
         const pulseWidth = heart.width * pulseScale;
@@ -1727,10 +1646,14 @@ Mode : ${difficultyLabel}`
           ctx.restore();
         }
         ctx.restore();
-      });
+      }
     }
     function drawCoins(coins) {
-      coins.forEach((coin) => {
+      for (let index = 0; index < coins.length; index += 1) {
+        const coin = coins[index];
+        if (coin.x + coin.width <= 0 || coin.x >= canvasWidth) {
+          continue;
+        }
         const floatOffset = Math.sin(coin.floatTime) * 8;
         const pulseScale = 1 + Math.sin(coin.floatTime * 2) * 0.06;
         const rotation = Math.sin(coin.spinTime) * 0.16;
@@ -1755,7 +1678,7 @@ Mode : ${difficultyLabel}`
           drawCoinFallback(coin.width, coin.height);
         }
         ctx.restore();
-      });
+      }
     }
     function draw({ coins, bonusHearts, bugHitEffects }) {
       drawBugHitEffects(bugHitEffects);
@@ -1769,12 +1692,19 @@ Mode : ${difficultyLabel}`
 
   // src/game/render-obstacles.js
   function createObstacleRenderer(ctx) {
+    const gradientCache = /* @__PURE__ */ new Map();
     function createObstacleFill(obstacle) {
       const palette = obstacle.palette ?? obstaclePalette[0];
       if (palette.kind === "gradient") {
+        const gradientKey = `${palette.start}:${palette.end}:${obstacle.width}:${obstacle.height}`;
+        const cachedGradient = gradientCache.get(gradientKey);
+        if (cachedGradient) {
+          return cachedGradient;
+        }
         const gradient = ctx.createLinearGradient(0, 0, obstacle.width, obstacle.height);
         gradient.addColorStop(0, palette.start);
         gradient.addColorStop(1, palette.end);
+        gradientCache.set(gradientKey, gradient);
         return gradient;
       }
       return palette.value;
@@ -1869,14 +1799,19 @@ Mode : ${difficultyLabel}`
       ctx.restore();
     }
     function draw(obstacles, state) {
-      obstacles.forEach((obstacle) => {
+      const canvasWidth = ctx.canvas.width;
+      for (let index = 0; index < obstacles.length; index += 1) {
+        const obstacle = obstacles[index];
+        if (obstacle.x + obstacle.width <= 0 || obstacle.x >= canvasWidth) {
+          continue;
+        }
         if (obstacle.kind === "animated-ball") {
           drawAnimatedBallObstacle(obstacle, state);
-          return;
+          continue;
         }
         if (isAnimatedBugKind(obstacle.kind)) {
           drawAnimatedBugObstacle(obstacle);
-          return;
+          continue;
         }
         ctx.save();
         ctx.translate(obstacle.x, obstacle.y);
@@ -1885,7 +1820,7 @@ Mode : ${difficultyLabel}`
         ctx.shadowOffsetY = 6;
         drawObstacleFallback(obstacle.width, obstacle.height, obstacle);
         ctx.restore();
-      });
+      }
     }
     return {
       draw
@@ -1895,10 +1830,16 @@ Mode : ${difficultyLabel}`
   // src/game/player-visual-state.js
   var PLAYER_VISUAL_HEIGHT = 206;
   var PLAYER_LAYOUTS = {
+    homeIdle: {
+      width: 330,
+      height: 400,
+      offsetY: -54,
+      groundOffsetY: 58
+    },
     idle: {
-      width: 140,
-      height: PLAYER_VISUAL_HEIGHT,
-      offsetY: -2,
+      width: 186,
+      height: 220,
+      offsetY: -14,
       groundOffsetY: 10
     },
     run: {
@@ -1914,9 +1855,9 @@ Mode : ${difficultyLabel}`
       groundOffsetY: 10
     },
     doubleJump: {
-      width: 198,
-      height: PLAYER_VISUAL_HEIGHT,
-      offsetY: -4,
+      width: 176,
+      height: 190,
+      offsetY: 6,
       groundOffsetY: 10
     },
     hit: {
@@ -1932,10 +1873,10 @@ Mode : ${difficultyLabel}`
       groundOffsetY: 12
     },
     gameOver: {
-      width: 204,
-      height: 198,
-      offsetY: 8,
-      groundOffsetY: 16
+      width: 194,
+      height: 206,
+      offsetY: -2,
+      groundOffsetY: 12
     },
     win: {
       width: 158,
@@ -1947,19 +1888,26 @@ Mode : ${difficultyLabel}`
   var HIT_ANIMATION_FRAMES_PER_SECOND = 8;
   var GAME_OVER_ANIMATION_FRAMES_PER_SECOND = 12;
   var WIN_ANIMATION_FRAMES_PER_SECOND = 3.2;
-  var IDLE_ANIMATION_FRAMES_PER_SECOND = 10;
+  var HOME_IDLE_ANIMATION_FRAMES_PER_SECOND = 5;
+  var IDLE_ANIMATION_FRAMES_PER_SECOND = 4;
   var PLAYER_FRAME_COUNTS = {
+    idleIntro: 71,
     run: 15,
     jump: 8,
     doubleJump: 6,
     chute: 5,
-    idle: 19,
+    idle: 26,
     hit: 4,
     gameOver: 20,
-    win: 9
+    win: 83
   };
   var GAME_OVER_ANIMATION_DURATION = PLAYER_FRAME_COUNTS.gameOver / GAME_OVER_ANIMATION_FRAMES_PER_SECOND;
-  var WIN_ANIMATION_DURATION = PLAYER_FRAME_COUNTS.win / WIN_ANIMATION_FRAMES_PER_SECOND;
+  function getLoopingFrameIndex(animationTime, frameCount, framesPerSecond) {
+    if (frameCount <= 0 || framesPerSecond <= 0) {
+      return 0;
+    }
+    return Math.floor(animationTime * framesPerSecond) % frameCount;
+  }
   var PLAYER_VISUAL_STATES = {
     IDLE: "idle",
     POST_GAME_IDLE: "post-game-idle",
@@ -1974,9 +1922,6 @@ Mode : ${difficultyLabel}`
   function resolvePlayerVisualState(state, player, runtime) {
     if (state.gameOver) {
       if (!runtime.didBeatRecordOnDeath && state.gameOverAnimationTime >= GAME_OVER_ANIMATION_DURATION) {
-        return PLAYER_VISUAL_STATES.POST_GAME_IDLE;
-      }
-      if (runtime.didBeatRecordOnDeath && state.gameOverAnimationTime >= WIN_ANIMATION_DURATION) {
         return PLAYER_VISUAL_STATES.POST_GAME_IDLE;
       }
       return runtime.didBeatRecordOnDeath ? PLAYER_VISUAL_STATES.VICTORY : PLAYER_VISUAL_STATES.GAME_OVER;
@@ -2114,12 +2059,32 @@ Mode : ${difficultyLabel}`
       }
       case PLAYER_VISUAL_STATES.POST_GAME_IDLE:
       case PLAYER_VISUAL_STATES.IDLE:
-      default:
+      default: {
+        if (visualState === PLAYER_VISUAL_STATES.IDLE) {
+          return {
+            visualState,
+            sheet: "idleIntro",
+            frameIndex: getLoopingFrameIndex(
+              state.headSwingTime,
+              PLAYER_FRAME_COUNTS.idleIntro,
+              HOME_IDLE_ANIMATION_FRAMES_PER_SECOND
+            ),
+            ...PLAYER_LAYOUTS.homeIdle,
+            allowSwing: false,
+            swingAmplitude: 0,
+            baseTilt: 0,
+            tiltAmplitude: 0,
+            bobAmplitude: 0,
+            strideAmplitude: 0,
+            motionPhase: 0
+          };
+        }
+        const idleLoopTime = state.gameOverAnimationTime - GAME_OVER_ANIMATION_DURATION;
         return {
           visualState,
           sheet: "idle",
-          frameIndex: getIdleFrameIndex(
-            visualState === PLAYER_VISUAL_STATES.POST_GAME_IDLE ? state.gameOverAnimationTime - (runtime.didBeatRecordOnDeath ? WIN_ANIMATION_DURATION : GAME_OVER_ANIMATION_DURATION) : state.headSwingTime,
+          frameIndex: getLoopingFrameIndex(
+            idleLoopTime,
             PLAYER_FRAME_COUNTS.idle,
             IDLE_ANIMATION_FRAMES_PER_SECOND
           ),
@@ -2132,6 +2097,7 @@ Mode : ${difficultyLabel}`
           strideAmplitude: 0,
           motionPhase: 0
         };
+      }
     }
   }
 
@@ -2145,7 +2111,7 @@ Mode : ${difficultyLabel}`
     canvas2.height = height;
     return canvas2;
   }
-  function trimTransparentBounds(canvas2) {
+  function getOpaqueBounds(canvas2) {
     const ctx = canvas2.getContext("2d", { willReadFrequently: true });
     const { width, height } = canvas2;
     const imageData = ctx.getImageData(0, 0, width, height);
@@ -2167,14 +2133,55 @@ Mode : ${difficultyLabel}`
       }
     }
     if (maxX < minX || maxY < minY) {
-      return canvas2;
+      return {
+        x: 0,
+        y: 0,
+        width,
+        height
+      };
     }
-    const trimmedWidth = maxX - minX + 1;
-    const trimmedHeight = maxY - minY + 1;
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX + 1,
+      height: maxY - minY + 1
+    };
+  }
+  function cropCanvasToBounds(canvas2, bounds) {
+    const trimmedWidth = Math.max(1, bounds.width);
+    const trimmedHeight = Math.max(1, bounds.height);
     const trimmedCanvas = createCanvas(trimmedWidth, trimmedHeight);
     const trimmedCtx = trimmedCanvas.getContext("2d");
-    trimmedCtx.drawImage(canvas2, minX, minY, trimmedWidth, trimmedHeight, 0, 0, trimmedWidth, trimmedHeight);
+    trimmedCtx.drawImage(
+      canvas2,
+      bounds.x,
+      bounds.y,
+      trimmedWidth,
+      trimmedHeight,
+      0,
+      0,
+      trimmedWidth,
+      trimmedHeight
+    );
     return trimmedCanvas;
+  }
+  function trimTransparentBounds(canvas2) {
+    return cropCanvasToBounds(canvas2, getOpaqueBounds(canvas2));
+  }
+  function expandBounds(currentBounds, nextBounds) {
+    if (!currentBounds) {
+      return { ...nextBounds };
+    }
+    const minX = Math.min(currentBounds.x, nextBounds.x);
+    const minY = Math.min(currentBounds.y, nextBounds.y);
+    const maxX = Math.max(currentBounds.x + currentBounds.width, nextBounds.x + nextBounds.width);
+    const maxY = Math.max(currentBounds.y + currentBounds.height, nextBounds.y + nextBounds.height);
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY
+    };
   }
   function normalizeClip(source, clip) {
     if (clip.width <= 1 && clip.height <= 1) {
@@ -2209,11 +2216,13 @@ Mode : ${difficultyLabel}`
   }
   function createPlayerRenderer(ctx) {
     const staticClipCache = /* @__PURE__ */ new Map();
+    const staticSourceCanvasCache = /* @__PURE__ */ new Map();
+    const sequenceBoundsCache = /* @__PURE__ */ new Map();
     const videoFrameCanvas = createCanvas(1, 1);
     const videoFrameCtx = videoFrameCanvas.getContext("2d", { willReadFrequently: true });
-    function getStaticProcessedClip(assetKey, sourceImage, clip, matte) {
+    function getStaticSourceCanvas(assetKey, sourceImage, clip, matte) {
       const clipKey = clip ? `${clip.x}:${clip.y}:${clip.width}:${clip.height}` : "full";
-      const cacheKey = `${assetKey}:${clipKey}:${matte}`;
+      const cacheKey = `${assetKey}:${clipKey}:${matte}:source`;
       const cached = staticClipCache.get(cacheKey);
       if (cached) {
         return cached;
@@ -2237,11 +2246,47 @@ Mode : ${difficultyLabel}`
         resolvedClip.width,
         resolvedClip.height
       );
-      let processed = applyMatteKey(canvas2, matte);
-      if (!clip) {
-        processed = trimTransparentBounds(processed);
-      }
+      const processed = applyMatteKey(canvas2, matte);
       staticClipCache.set(cacheKey, processed);
+      return processed;
+    }
+    function getSequenceBounds(sequenceKey, frameAssets, matte) {
+      if (!sequenceKey || !frameAssets?.length) {
+        return null;
+      }
+      const cacheKey = `${sequenceKey}:${matte}`;
+      const cached = sequenceBoundsCache.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+      let mergedBounds = null;
+      for (const frameAsset of frameAssets) {
+        if (!frameAsset.image || !isImageReady(frameAsset.image)) {
+          return null;
+        }
+        const assetKey = frameAsset.image.currentSrc || frameAsset.image.src || cacheKey;
+        const sourceCanvas = getStaticSourceCanvas(assetKey, frameAsset.image, null, matte);
+        const opaqueBounds = getOpaqueBounds(sourceCanvas);
+        mergedBounds = expandBounds(mergedBounds, opaqueBounds);
+      }
+      const normalizedBounds = mergedBounds ?? { x: 0, y: 0, width: 1, height: 1 };
+      sequenceBoundsCache.set(cacheKey, normalizedBounds);
+      return normalizedBounds;
+    }
+    function getStaticProcessedClip(assetKey, sourceImage, clip, matte, preserveFrameBounds = false, sequenceBounds = null) {
+      const clipKey = clip ? `${clip.x}:${clip.y}:${clip.width}:${clip.height}` : "full";
+      const boundsKey = preserveFrameBounds && sequenceBounds ? `${sequenceBounds.x}:${sequenceBounds.y}:${sequenceBounds.width}:${sequenceBounds.height}` : "trimmed";
+      const cacheKey = `${assetKey}:${clipKey}:${matte}:${boundsKey}`;
+      const cached = staticSourceCanvasCache.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+      const sourceCanvas = getStaticSourceCanvas(assetKey, sourceImage, clip, matte);
+      let processed = sourceCanvas;
+      if (!clip) {
+        processed = preserveFrameBounds && sequenceBounds ? cropCanvasToBounds(sourceCanvas, sequenceBounds) : trimTransparentBounds(sourceCanvas);
+      }
+      staticSourceCanvasCache.set(cacheKey, processed);
       return processed;
     }
     function getProcessedVideoFrame(sourceVideo, clip, matte) {
@@ -2266,46 +2311,78 @@ Mode : ${difficultyLabel}`
     }
     function getVisualDescriptor(sheetName, frameIndex) {
       switch (sheetName) {
+        case "idleIntro":
+          return {
+            asset: playerVisualAssets.idleIntro.frameAssets[frameIndex % playerVisualAssets.idleIntro.frameAssets.length],
+            frameAssets: playerVisualAssets.idleIntro.frameAssets,
+            matte: playerVisualAssets.idleIntro.matte,
+            preserveFrameBounds: playerVisualAssets.idleIntro.preserveFrameBounds ?? false,
+            sequenceKey: "idleIntro"
+          };
         case "run":
           return {
             asset: playerVisualAssets.run.frameAssets[frameIndex % playerVisualAssets.run.frameAssets.length],
-            matte: playerVisualAssets.run.matte
+            frameAssets: playerVisualAssets.run.frameAssets,
+            matte: playerVisualAssets.run.matte,
+            preserveFrameBounds: playerVisualAssets.run.preserveFrameBounds ?? false,
+            sequenceKey: "run"
           };
         case "jump":
           return {
             asset: playerVisualAssets.jump.frameAssets[frameIndex % playerVisualAssets.jump.frameAssets.length],
-            matte: playerVisualAssets.jump.matte
+            frameAssets: playerVisualAssets.jump.frameAssets,
+            matte: playerVisualAssets.jump.matte,
+            preserveFrameBounds: playerVisualAssets.jump.preserveFrameBounds ?? false,
+            sequenceKey: "jump"
           };
         case "doubleJump":
           return {
             asset: playerVisualAssets.doubleJump.frameAssets[frameIndex % playerVisualAssets.doubleJump.frameAssets.length],
-            matte: playerVisualAssets.doubleJump.matte
+            frameAssets: playerVisualAssets.doubleJump.frameAssets,
+            matte: playerVisualAssets.doubleJump.matte,
+            preserveFrameBounds: playerVisualAssets.doubleJump.preserveFrameBounds ?? false,
+            sequenceKey: "doubleJump"
           };
         case "hit":
           return {
             asset: playerVisualAssets.hit.frameAssets[frameIndex % playerVisualAssets.hit.frameAssets.length],
-            matte: playerVisualAssets.hit.matte
+            frameAssets: playerVisualAssets.hit.frameAssets,
+            matte: playerVisualAssets.hit.matte,
+            preserveFrameBounds: playerVisualAssets.hit.preserveFrameBounds ?? false,
+            sequenceKey: "hit"
           };
         case "chute":
           return {
             asset: playerVisualAssets.chute.frameAssets[frameIndex % playerVisualAssets.chute.frameAssets.length],
-            matte: playerVisualAssets.chute.matte
+            frameAssets: playerVisualAssets.chute.frameAssets,
+            matte: playerVisualAssets.chute.matte,
+            preserveFrameBounds: playerVisualAssets.chute.preserveFrameBounds ?? false,
+            sequenceKey: "chute"
           };
         case "gameOver":
           return {
             asset: playerVisualAssets.gameOver.frameAssets[frameIndex % playerVisualAssets.gameOver.frameAssets.length],
-            matte: playerVisualAssets.gameOver.matte
+            frameAssets: playerVisualAssets.gameOver.frameAssets,
+            matte: playerVisualAssets.gameOver.matte,
+            preserveFrameBounds: playerVisualAssets.gameOver.preserveFrameBounds ?? false,
+            sequenceKey: "gameOver"
           };
         case "win":
           return {
             asset: playerVisualAssets.win.frameAssets[frameIndex % playerVisualAssets.win.frameAssets.length],
-            matte: playerVisualAssets.win.matte
+            frameAssets: playerVisualAssets.win.frameAssets,
+            matte: playerVisualAssets.win.matte,
+            preserveFrameBounds: playerVisualAssets.win.preserveFrameBounds ?? false,
+            sequenceKey: "win"
           };
         case "idle":
         default:
           return {
             asset: playerVisualAssets.idle.frameAssets[frameIndex % playerVisualAssets.idle.frameAssets.length],
-            matte: playerVisualAssets.idle.matte
+            frameAssets: playerVisualAssets.idle.frameAssets,
+            matte: playerVisualAssets.idle.matte,
+            preserveFrameBounds: playerVisualAssets.idle.preserveFrameBounds ?? false,
+            sequenceKey: "idle"
           };
       }
     }
@@ -2313,9 +2390,11 @@ Mode : ${difficultyLabel}`
       const visualState = resolvePlayerVisualState(state, player, runtime);
       const animation = createPlayerAnimationFromVisualState(visualState, state, player, runtime);
       const visual = getVisualDescriptor(animation.sheet, animation.frameIndex);
-      const bodyTilt = (animation.baseTilt ?? 0) + Math.sin(animation.motionPhase ?? 0) * (animation.tiltAmplitude ?? 0);
-      const bodyLift = -Math.abs(Math.sin(animation.motionPhase ?? 0)) * (animation.bobAmplitude ?? 0);
-      const strideShift = Math.sin(animation.motionPhase ?? 0) * (animation.strideAmplitude ?? 0);
+      const motionPhase = animation.motionPhase ?? 0;
+      const motionSine = Math.sin(motionPhase);
+      const bodyTilt = (animation.baseTilt ?? 0) + motionSine * (animation.tiltAmplitude ?? 0);
+      const bodyLift = -Math.abs(motionSine) * (animation.bobAmplitude ?? 0);
+      const strideShift = motionSine * (animation.strideAmplitude ?? 0);
       const footX = player.x + player.width * 0.52;
       const footY = player.y + player.height + animation.groundOffsetY;
       const pivotX = footX;
@@ -2336,7 +2415,15 @@ Mode : ${difficultyLabel}`
           return;
         }
         const staticAssetKey = visual.asset.image.currentSrc || visual.asset.image.src || animation.sheet;
-        processedSource = getStaticProcessedClip(staticAssetKey, visual.asset.image, visual.clip, visual.matte);
+        const sequenceBounds = visual.preserveFrameBounds ? getSequenceBounds(visual.sequenceKey, visual.frameAssets, visual.matte) : null;
+        processedSource = getStaticProcessedClip(
+          staticAssetKey,
+          visual.asset.image,
+          visual.clip,
+          visual.matte,
+          visual.preserveFrameBounds,
+          sequenceBounds
+        );
         sourceWidth = processedSource.width;
         sourceHeight = processedSource.height;
       }
@@ -2457,7 +2544,9 @@ Mode : ${difficultyLabel}`
     deltaTime,
     bugsOnly = false
   }) {
-    obstacles.forEach((obstacle) => {
+    let writeIndex = 0;
+    for (let index = 0; index < obstacles.length; index += 1) {
+      const obstacle = obstacles[index];
       if (!bugsOnly || isAnimatedBugKind(obstacle.kind)) {
         const direction = bugsOnly && obstacle.kind === "animated-bug-b" ? 1 : -1;
         obstacle.x += direction * speed * getObstacleSpeedMultiplier(obstacle.kind) * deltaTime;
@@ -2465,32 +2554,54 @@ Mode : ${difficultyLabel}`
       if (isAnimatedBugKind(obstacle.kind)) {
         obstacle.animationTime += deltaTime;
       }
-    });
+      if (obstacle.x + obstacle.width > -40 && obstacle.x < worldWidth + obstacle.width + 40) {
+        obstacles[writeIndex] = obstacle;
+        writeIndex += 1;
+      }
+    }
+    obstacles.length = writeIndex;
     if (!bugsOnly) {
-      coins.forEach((coin) => {
+      writeIndex = 0;
+      for (let index = 0; index < coins.length; index += 1) {
+        const coin = coins[index];
         coin.x -= speed * deltaTime;
         coin.floatTime += deltaTime * 5.2;
         coin.spinTime += deltaTime * 4.4;
-      });
-      bonusHearts.forEach((heart) => {
+        if (coin.x + coin.width > -40) {
+          coins[writeIndex] = coin;
+          writeIndex += 1;
+        }
+      }
+      coins.length = writeIndex;
+      writeIndex = 0;
+      for (let index = 0; index < bonusHearts.length; index += 1) {
+        const heart = bonusHearts[index];
         heart.x -= speed * deltaTime;
         heart.floatTime += deltaTime * 5.2;
-      });
+        if (heart.x + heart.width > -40) {
+          bonusHearts[writeIndex] = heart;
+          writeIndex += 1;
+        }
+      }
+      bonusHearts.length = writeIndex;
     }
-    bugHitEffects.forEach((effect) => {
+    writeIndex = 0;
+    for (let index = 0; index < bugHitEffects.length; index += 1) {
+      const effect = bugHitEffects[index];
       const direction = bugsOnly && effect.kind === "animated-bug-b" ? 1 : -1;
       effect.x += direction * speed * getObstacleSpeedMultiplier(effect.kind) * deltaTime;
       effect.timeLeft -= deltaTime;
-    });
+      if (effect.x + effect.width > -40 && effect.x < worldWidth + effect.width + 40 && effect.timeLeft > 0) {
+        bugHitEffects[writeIndex] = effect;
+        writeIndex += 1;
+      }
+    }
+    bugHitEffects.length = writeIndex;
     return {
-      obstacles: obstacles.filter(
-        (obstacle) => obstacle.x + obstacle.width > -40 && obstacle.x < worldWidth + obstacle.width + 40
-      ),
-      coins: coins.filter((coin) => coin.x + coin.width > -40),
-      bonusHearts: bonusHearts.filter((heart) => heart.x + heart.width > -40),
-      bugHitEffects: bugHitEffects.filter(
-        (effect) => effect.x + effect.width > -40 && effect.x < worldWidth + effect.width + 40 && effect.timeLeft > 0
-      )
+      obstacles,
+      coins,
+      bonusHearts,
+      bugHitEffects
     };
   }
 
@@ -2680,12 +2791,15 @@ Mode : ${difficultyLabel}`
       view2.updateCoinDisplay(state.coinsCollected);
     }
     function checkCollision() {
-      const collision = findObstacleCollisionDetails(player, obstacles, state.hitCooldown);
+      const collision = findObstacleCollisionDetails(player, obstacles);
       if (!collision) {
         return;
       }
       if (collision.stomped && isAnimatedBugKind(collision.obstacle.kind)) {
         squashBug(collision);
+        return;
+      }
+      if (state.hitCooldown > 0) {
         return;
       }
       loseLife(collision.obstacle);
@@ -2857,7 +2971,7 @@ Mode : ${difficultyLabel}`
       return level.id;
     }
     function canSpawnObstacles() {
-      return level.id !== "storybook";
+      return true;
     }
     function update(timestamp) {
       const frameDelta = computeFrameDelta(timestamp, state.lastTime);
@@ -2932,12 +3046,18 @@ Mode : ${difficultyLabel}`
       view2.renderLevelOptions(LEVEL_OPTIONS, level.id, setLevel);
       view2.setDifficultySelection(difficulty.id);
       view2.setLevelSelection(level.id);
-      syncTouchMode();
-      clouds = createClouds();
-      initGame();
       view2.setActionButtonDisabled(true);
       view2.setResetScoresButtonDisabled(true);
       view2.setSettingsButtonDisabled(true);
+      syncTouchMode();
+      clouds = createClouds();
+      updateHudDisplay();
+      view2.resetLivesDisplay(state.lives);
+      view2.showLoadingOverlay({
+        loaded: 0,
+        total: 0,
+        progress: 0
+      });
       renderer.draw({ state, player, runtime, clouds, obstacles, coins, bonusHearts, bugHitEffects, levelId: getRenderedLevelId() });
       browser2.requestAnimationFrame(update);
       cleanupInput = view2.bindControls({
@@ -2971,7 +3091,11 @@ Mode : ${difficultyLabel}`
         }
         resetScores();
       });
-      preloadCoreAssets().then(() => {
+      preloadCoreAssets({
+        onProgress: (progressState) => {
+          view2.updateLoadingProgress(progressState);
+        }
+      }).then(() => {
         runtime.assetsReady = true;
         view2.setActionButtonDisabled(false);
         view2.setResetScoresButtonDisabled(false);
@@ -3039,6 +3163,8 @@ Mode : ${difficultyLabel}`
     overlayTag,
     overlayTitle,
     overlayText,
+    loadingProgress,
+    loadingProgressText,
     actionButton,
     resetScoresButton,
     recordValue,
@@ -3051,6 +3177,13 @@ Mode : ${difficultyLabel}`
     touchJumpButton
   }, browser2) {
     const heartBreakTimers = /* @__PURE__ */ new Map();
+    const renderCache = {
+      bestScoreText: null,
+      coinText: null,
+      loadingLabel: null,
+      loadingPercent: null,
+      scoreText: null
+    };
     const HOME_LOGO_MARKUP = `
     <span class="overlay-logo-word" aria-hidden="true">
       <span class="overlay-logo-letter overlay-logo-letter--r">R</span>
@@ -3103,6 +3236,7 @@ Mode : ${difficultyLabel}`
       const activeScreen = screen ?? "default";
       overlay.dataset.screen = activeScreen;
       overlay.classList.toggle("overlay--home", activeScreen === "home");
+      overlay.classList.toggle("overlay--loading-screen", activeScreen === "loading");
       overlay.classList.toggle("overlay--settings-screen", activeScreen === "settings");
       overlay.classList.toggle("overlay--end-screen", activeScreen === "end");
       overlay.classList.toggle("overlay--error-screen", activeScreen === "error");
@@ -3135,6 +3269,36 @@ Mode : ${difficultyLabel}`
       }
       overlayTitle.textContent = title;
     }
+    function updateLoadingProgress({ loaded = 0, total = 0, progress = 0 } = {}) {
+      if (!loadingProgress || !loadingProgressText) {
+        return;
+      }
+      const safeProgress = Number.isFinite(progress) ? Math.max(0, Math.min(progress, 1)) : 0;
+      const roundedPercent = Math.round(safeProgress * 100);
+      const loadingLabel = total > 0 ? `Chargement des assets ${loaded}/${total} (${roundedPercent}%)` : `Chargement des assets (${roundedPercent}%)`;
+      if (renderCache.loadingPercent !== roundedPercent) {
+        loadingProgress.style.width = `${roundedPercent}%`;
+        loadingProgress.setAttribute("aria-valuenow", String(roundedPercent));
+        renderCache.loadingPercent = roundedPercent;
+      }
+      if (renderCache.loadingLabel !== loadingLabel) {
+        loadingProgressText.textContent = loadingLabel;
+        renderCache.loadingLabel = loadingLabel;
+      }
+    }
+    function showLoadingOverlay(progressState) {
+      applyOverlayScreen("loading");
+      if (overlayTag) {
+        overlayTag.textContent = "Initialisation";
+      }
+      renderOverlayTitle("Chargement du jeu", "loading");
+      overlayText.textContent = "Preparation des sprites et de l'interface pour un demarrage fluide.";
+      actionButton.textContent = "";
+      overlay.classList.remove("overlay--record");
+      overlay.setAttribute("aria-busy", "true");
+      overlay.classList.add("visible");
+      updateLoadingProgress(progressState);
+    }
     function showOverlay(title, text, buttonLabel, options = {}) {
       const {
         celebrateRecord = false,
@@ -3149,20 +3313,34 @@ Mode : ${difficultyLabel}`
       overlayText.textContent = text;
       actionButton.textContent = buttonLabel;
       overlay.classList.toggle("overlay--record", celebrateRecord);
+      overlay.setAttribute("aria-busy", "false");
       overlay.classList.add("visible");
     }
     function hideOverlay() {
       applyOverlayScreen("default");
       overlay.classList.remove("overlay--record");
+      overlay.setAttribute("aria-busy", "false");
       overlay.classList.remove("visible");
     }
     function updateScoreDisplay(score, bestScore) {
-      scoreValue.textContent = Math.floor(score);
-      recordValue.textContent = String(bestScore);
+      const nextScoreText = String(Math.floor(score));
+      const nextBestScoreText = String(bestScore);
+      if (renderCache.scoreText !== nextScoreText) {
+        scoreValue.textContent = nextScoreText;
+        renderCache.scoreText = nextScoreText;
+      }
+      if (renderCache.bestScoreText !== nextBestScoreText) {
+        recordValue.textContent = nextBestScoreText;
+        renderCache.bestScoreText = nextBestScoreText;
+      }
     }
     function updateCoinDisplay(coinsCollected) {
       if (coinValue) {
-        coinValue.textContent = String(coinsCollected);
+        const nextCoinText = String(coinsCollected);
+        if (renderCache.coinText !== nextCoinText) {
+          coinValue.textContent = nextCoinText;
+          renderCache.coinText = nextCoinText;
+        }
       }
     }
     function setupLivesDisplay(maxLives, lives) {
@@ -3265,7 +3443,7 @@ Mode : ${difficultyLabel}`
       settingsButton.classList.toggle("is-active", active);
     }
     function announceScoresReset(bestScore) {
-      overlayText.textContent = `Les records ont ete remis a zero.
+      overlayText.textContent = `Le score et les records ont ete remis a zero.
 Record actuel : ${bestScore}`;
     }
     return {
@@ -3278,12 +3456,14 @@ Record actuel : ${bestScore}`;
       resetLivesDisplay,
       restoreHeart,
       setDifficultySelection,
+      showLoadingOverlay,
       setLevelSelection,
       setSettingsButtonActive,
       setTouchJumpVisible,
       setTouchMode,
       setupLivesDisplay,
       showOverlay,
+      updateLoadingProgress,
       updateCoinDisplay,
       updateLivesAriaLabel,
       updateScoreDisplay
@@ -3297,6 +3477,8 @@ Record actuel : ${bestScore}`;
       overlayTag,
       overlayTitle,
       overlayText,
+      loadingProgress,
+      loadingProgressText,
       actionButton,
       resetScoresButton,
       recordValue,
@@ -3313,6 +3495,8 @@ Record actuel : ${bestScore}`;
       overlayTag,
       overlayTitle,
       overlayText,
+      loadingProgress,
+      loadingProgressText,
       actionButton,
       resetScoresButton,
       recordValue,
@@ -3383,6 +3567,8 @@ Record actuel : ${bestScore}`;
     overlayTag: browser.documentRef.getElementById("overlayTag"),
     overlayTitle: browser.documentRef.getElementById("overlayTitle"),
     overlayText: browser.documentRef.getElementById("overlayText"),
+    loadingProgress: browser.documentRef.getElementById("loadingProgress"),
+    loadingProgressText: browser.documentRef.getElementById("loadingProgressText"),
     actionButton: browser.documentRef.getElementById("actionButton"),
     resetScoresButton: browser.documentRef.getElementById("resetScoresButton"),
     recordValue: browser.documentRef.getElementById("recordValue"),

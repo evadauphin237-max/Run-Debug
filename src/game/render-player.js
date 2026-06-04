@@ -265,6 +265,14 @@ export function createPlayerRenderer(ctx) {
 
   function getVisualDescriptor(sheetName, frameIndex) {
     switch (sheetName) {
+      case "idleIntro":
+        return {
+          asset: playerVisualAssets.idleIntro.frameAssets[frameIndex % playerVisualAssets.idleIntro.frameAssets.length],
+          frameAssets: playerVisualAssets.idleIntro.frameAssets,
+          matte: playerVisualAssets.idleIntro.matte,
+          preserveFrameBounds: playerVisualAssets.idleIntro.preserveFrameBounds ?? false,
+          sequenceKey: "idleIntro",
+        };
       case "run":
         return {
           asset: playerVisualAssets.run.frameAssets[frameIndex % playerVisualAssets.run.frameAssets.length],
@@ -337,9 +345,11 @@ export function createPlayerRenderer(ctx) {
     const visualState = resolvePlayerVisualState(state, player, runtime);
     const animation = createPlayerAnimationFromVisualState(visualState, state, player, runtime);
     const visual = getVisualDescriptor(animation.sheet, animation.frameIndex);
-    const bodyTilt = (animation.baseTilt ?? 0) + Math.sin(animation.motionPhase ?? 0) * (animation.tiltAmplitude ?? 0);
-    const bodyLift = -Math.abs(Math.sin(animation.motionPhase ?? 0)) * (animation.bobAmplitude ?? 0);
-    const strideShift = Math.sin(animation.motionPhase ?? 0) * (animation.strideAmplitude ?? 0);
+    const motionPhase = animation.motionPhase ?? 0;
+    const motionSine = Math.sin(motionPhase);
+    const bodyTilt = (animation.baseTilt ?? 0) + motionSine * (animation.tiltAmplitude ?? 0);
+    const bodyLift = -Math.abs(motionSine) * (animation.bobAmplitude ?? 0);
+    const strideShift = motionSine * (animation.strideAmplitude ?? 0);
     const footX = player.x + player.width * 0.52;
     const footY = player.y + player.height + animation.groundOffsetY;
     const pivotX = footX;

@@ -96,7 +96,11 @@ export function advanceSpawnedEntities({
 }) {
   // During the game-over sequence we only keep moving bug actors
   // to let the death animation breathe without advancing the whole run.
-  obstacles.forEach((obstacle) => {
+  let writeIndex = 0;
+
+  for (let index = 0; index < obstacles.length; index += 1) {
+    const obstacle = obstacles[index];
+
     if (!bugsOnly || isAnimatedBugKind(obstacle.kind)) {
       const direction = bugsOnly && obstacle.kind === "animated-bug-b" ? 1 : -1;
       obstacle.x += direction * speed * getObstacleSpeedMultiplier(obstacle.kind) * deltaTime;
@@ -105,38 +109,72 @@ export function advanceSpawnedEntities({
     if (isAnimatedBugKind(obstacle.kind)) {
       obstacle.animationTime += deltaTime;
     }
-  });
+
+    if (obstacle.x + obstacle.width > -40 && obstacle.x < worldWidth + obstacle.width + 40) {
+      obstacles[writeIndex] = obstacle;
+      writeIndex += 1;
+    }
+  }
+
+  obstacles.length = writeIndex;
 
   if (!bugsOnly) {
-    coins.forEach((coin) => {
+    writeIndex = 0;
+
+    for (let index = 0; index < coins.length; index += 1) {
+      const coin = coins[index];
+
       coin.x -= speed * deltaTime;
       coin.floatTime += deltaTime * 5.2;
       coin.spinTime += deltaTime * 4.4;
-    });
 
-    bonusHearts.forEach((heart) => {
+      if (coin.x + coin.width > -40) {
+        coins[writeIndex] = coin;
+        writeIndex += 1;
+      }
+    }
+
+    coins.length = writeIndex;
+
+    writeIndex = 0;
+
+    for (let index = 0; index < bonusHearts.length; index += 1) {
+      const heart = bonusHearts[index];
+
       heart.x -= speed * deltaTime;
       heart.floatTime += deltaTime * 5.2;
-    });
+      if (heart.x + heart.width > -40) {
+        bonusHearts[writeIndex] = heart;
+        writeIndex += 1;
+      }
+    }
+
+    bonusHearts.length = writeIndex;
   }
 
-  bugHitEffects.forEach((effect) => {
+  writeIndex = 0;
+
+  for (let index = 0; index < bugHitEffects.length; index += 1) {
+    const effect = bugHitEffects[index];
     const direction = bugsOnly && effect.kind === "animated-bug-b" ? 1 : -1;
     effect.x += direction * speed * getObstacleSpeedMultiplier(effect.kind) * deltaTime;
     effect.timeLeft -= deltaTime;
-  });
+    if (
+      effect.x + effect.width > -40 &&
+      effect.x < worldWidth + effect.width + 40 &&
+      effect.timeLeft > 0
+    ) {
+      bugHitEffects[writeIndex] = effect;
+      writeIndex += 1;
+    }
+  }
+
+  bugHitEffects.length = writeIndex;
 
   return {
-    obstacles: obstacles.filter(
-      (obstacle) => obstacle.x + obstacle.width > -40 && obstacle.x < worldWidth + obstacle.width + 40
-    ),
-    coins: coins.filter((coin) => coin.x + coin.width > -40),
-    bonusHearts: bonusHearts.filter((heart) => heart.x + heart.width > -40),
-    bugHitEffects: bugHitEffects.filter(
-      (effect) =>
-        effect.x + effect.width > -40 &&
-        effect.x < worldWidth + effect.width + 40 &&
-        effect.timeLeft > 0
-    ),
+    obstacles,
+    coins,
+    bonusHearts,
+    bugHitEffects,
   };
 }
